@@ -3,77 +3,247 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>IoT Factory Dashboard — 3D Monitoramento de Chão de Fábrica</title>
+  <title>Grupo GPS — Central de Monitoramento IoT | Chão de Fábrica 3D</title>
   <style>
+    :root {
+      --bg: #0b0f14;
+      --panel: #11161d;
+      --panel-2: #161b22;
+      --line: #232b36;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --brand: #0a66c2;
+      --brand-soft: rgba(10,102,194,0.15);
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-      background: #0d1117;
-      color: #e6edf3;
+      background: var(--bg);
+      color: var(--text);
       overflow: hidden;
       height: 100vh;
     }
-    #canvas-container {
-      width: 100vw;
+
+    /* ─── App shell ─────────────────────────────────────────── */
+    #app {
       height: 100vh;
+      display: grid;
+      grid-template-rows: 64px 1fr 34px;
+      grid-template-columns: 300px 1fr 288px;
+      grid-template-areas:
+        "topbar topbar topbar"
+        "side   stage  aside"
+        "status status status";
+      gap: 12px;
+      padding: 12px;
+    }
+
+    /* ─── Top bar ───────────────────────────────────────────── */
+    #topbar {
+      grid-area: topbar;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 0 20px;
+      background: linear-gradient(90deg, rgba(10,102,194,0.18) 0%, var(--panel) 45%);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+    .brand { display: flex; align-items: center; gap: 16px; min-width: 0; }
+    .brand img { height: 30px; width: auto; display: block; }
+    .brand .brand-fallback {
+      display: none;
+      font-size: 22px; font-weight: 800; letter-spacing: 2px; color: #fff;
+    }
+    .brand .divider { width: 1px; height: 32px; background: var(--line); }
+    .brand .titles h1 { font-size: 16px; font-weight: 600; letter-spacing: 0.2px; }
+    .brand .titles p { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+
+    .session { display: flex; align-items: center; gap: 18px; }
+    .session .clock { text-align: right; }
+    .session .clock .time { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .session .clock .date { font-size: 11px; color: var(--muted); text-transform: capitalize; }
+    .operator {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 7px 12px 7px 8px;
+    }
+    .operator .avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--brand), #3fb2f0);
+      display: grid; place-items: center;
+      font-size: 12px; font-weight: 700; color: #fff;
+    }
+    .operator .who .name { font-size: 13px; font-weight: 600; line-height: 1.2; }
+    .operator .who .meta { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+    .auth-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--green);
+      background: rgba(63,185,80,0.12);
+      border: 1px solid rgba(63,185,80,0.28);
+      border-radius: 20px;
+      padding: 2px 8px;
+    }
+    .auth-badge .pulse {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+    .btn-ghost {
+      background: transparent; border: 1px solid var(--line); color: var(--muted);
+      border-radius: 8px; padding: 8px 14px; font-size: 12px; cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-ghost:hover { border-color: var(--red); color: var(--red); }
+
+    /* ─── Side panels ───────────────────────────────────────── */
+    .side-panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px;
+      overflow-y: auto;
+    }
+    #sidebar { grid-area: side; }
+    #aside   { grid-area: aside; }
+    .side-panel::-webkit-scrollbar { width: 6px; }
+    .side-panel::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+
+    .section + .section { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); }
+    .section h3 {
+      font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.8px;
+      color: var(--muted); font-weight: 700; margin-bottom: 10px;
+    }
+    .section p { font-size: 12.5px; line-height: 1.6; color: #b8c2cc; }
+    .steps { list-style: none; counter-reset: s; }
+    .steps li {
+      counter-increment: s;
+      position: relative;
+      padding-left: 26px;
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: #b8c2cc;
+      margin-bottom: 9px;
+    }
+    .steps li::before {
+      content: counter(s);
+      position: absolute; left: 0; top: 0;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: var(--brand-soft); border: 1px solid rgba(10,102,194,0.4);
+      color: #58a6ff; font-size: 10px; font-weight: 700;
+      display: grid; place-items: center;
+    }
+    .steps li b { color: var(--text); font-weight: 600; }
+
+    .kv { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 5px 0; }
+    .kv .k { color: var(--muted); }
+    .kv .v { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+    .callout {
+      background: rgba(210,153,34,0.08);
+      border: 1px solid rgba(210,153,34,0.28);
+      border-left-width: 3px;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 12px;
+      line-height: 1.55;
+      color: #e3c06a;
+    }
+    .callout b { color: #f0d08a; }
+
+    .alert-item {
+      display: flex; gap: 10px; align-items: flex-start;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--yellow);
+      border-radius: 8px;
+      padding: 9px 11px;
+      margin-bottom: 8px;
+    }
+    .alert-item.critical { border-left-color: var(--red); }
+    .alert-item.offline  { border-left-color: #6e7681; }
+    .alert-item .ai-body { min-width: 0; }
+    .alert-item .ai-title { font-size: 12px; font-weight: 600; }
+    .alert-item .ai-desc { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.45; }
+
+    kbd {
+      background: var(--panel-2); border: 1px solid var(--line);
+      border-bottom-width: 2px; border-radius: 5px;
+      padding: 1px 6px; font-size: 10.5px; font-family: inherit; color: var(--text);
+    }
+
+    /* ─── Stage (contém a animação 3D) ──────────────────────── */
+    #stage {
+      grid-area: stage;
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #0d1117;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
       display: block;
     }
 
     /* HUD overlay */
     #hud {
-      position: fixed;
+      position: absolute;
       top: 0; left: 0; right: 0;
-      padding: 16px 24px;
+      padding: 14px 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       pointer-events: none;
       z-index: 10;
-      background: linear-gradient(180deg, rgba(13,17,23,0.85) 0%, transparent 100%);
+      background: linear-gradient(180deg, rgba(13,17,23,0.88) 0%, transparent 100%);
     }
     #hud h1 {
-      font-size: 18px;
+      font-size: 14px;
       font-weight: 600;
       letter-spacing: 0.3px;
       color: #f0f6fc;
     }
     #hud h1 small {
       font-weight: 400;
-      font-size: 13px;
-      color: #8b949e;
-      margin-left: 12px;
+      font-size: 11.5px;
+      color: var(--muted);
+      margin-left: 10px;
     }
     #hud .stats {
       display: flex;
-      gap: 28px;
+      gap: 24px;
       font-size: 13px;
     }
-    #hud .stats .stat {
-      text-align: right;
-    }
+    #hud .stats .stat { text-align: right; }
     #hud .stats .stat .label {
-      color: #8b949e;
-      font-size: 11px;
+      color: var(--muted);
+      font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
-    #hud .stats .stat .value {
-      font-weight: 600;
-      font-size: 15px;
-    }
-    .value.online { color: #3fb950; }
-    .value.alert   { color: #d29922; }
-    .value.offline { color: #f85149; }
+    #hud .stats .stat .value { font-weight: 600; font-size: 15px; }
+    .value.online { color: var(--green); }
+    .value.alert   { color: var(--yellow); }
+    .value.offline { color: var(--red); }
 
     /* Machine info panel */
     #info-panel {
-      position: fixed;
-      bottom: 32px;
+      position: absolute;
+      bottom: 24px;
       left: 50%;
       transform: translateX(-50%);
       width: 520px;
-      max-width: 92vw;
-      background: rgba(22,27,34,0.92);
+      max-width: 92%;
+      background: rgba(22,27,34,0.94);
       backdrop-filter: blur(12px);
       border: 1px solid #30363d;
       border-radius: 12px;
@@ -96,10 +266,7 @@
       align-items: flex-start;
       margin-bottom: 12px;
     }
-    #info-panel .header h2 {
-      font-size: 17px;
-      font-weight: 600;
-    }
+    #info-panel .header h2 { font-size: 17px; font-weight: 600; }
     #info-panel .header .status-badge {
       font-size: 11px;
       padding: 3px 10px;
@@ -126,7 +293,7 @@
     #info-panel .metrics .metric .m-label {
       font-size: 10px;
       text-transform: uppercase;
-      color: #8b949e;
+      color: var(--muted);
       letter-spacing: 0.4px;
     }
     #info-panel .metrics .metric .m-value {
@@ -135,24 +302,18 @@
       margin-top: 2px;
     }
 
-    #info-panel .command-area {
-      display: flex;
-      gap: 8px;
-      margin-top: 4px;
-    }
+    #info-panel .command-area { display: flex; gap: 8px; margin-top: 4px; }
     #info-panel .command-area select {
       flex: 1;
       background: #161b22;
       border: 1px solid #30363d;
       border-radius: 6px;
-      color: #e6edf3;
+      color: var(--text);
       padding: 8px 12px;
       font-size: 13px;
       outline: none;
     }
-    #info-panel .command-area select:focus {
-      border-color: #58a6ff;
-    }
+    #info-panel .command-area select:focus { border-color: #58a6ff; }
     #info-panel .command-area button {
       background: #238636;
       border: none;
@@ -164,19 +325,16 @@
       cursor: pointer;
       transition: background 0.15s;
     }
-    #info-panel .command-area button:hover {
-      background: #2ea043;
-    }
-    #info-panel .command-area button:active {
-      background: #1e7e34;
-    }
+    #info-panel .command-area button:hover { background: #2ea043; }
+    #info-panel .command-area button:active { background: #1e7e34; }
+    #info-panel .panel-hint { font-size: 10.5px; color: var(--muted); margin-top: 10px; }
     #info-panel .close-btn {
       position: absolute;
       top: 12px;
       right: 16px;
       background: none;
       border: none;
-      color: #8b949e;
+      color: var(--muted);
       font-size: 20px;
       cursor: pointer;
       line-height: 1;
@@ -184,8 +342,8 @@
     #info-panel .close-btn:hover { color: #f0f6fc; }
 
     #toast {
-      position: fixed;
-      bottom: 100px;
+      position: absolute;
+      top: 72px;
       left: 50%;
       transform: translateX(-50%);
       background: rgba(35,134,54,0.92);
@@ -204,12 +362,12 @@
 
     /* Legend */
     #legend {
-      position: fixed;
-      bottom: 32px;
-      right: 24px;
+      position: absolute;
+      bottom: 16px;
+      right: 18px;
       z-index: 10;
-      font-size: 12px;
-      color: #8b949e;
+      font-size: 11.5px;
+      color: var(--muted);
       text-align: right;
       line-height: 1.8;
       pointer-events: none;
@@ -221,54 +379,256 @@
       margin-right: 6px;
       vertical-align: middle;
     }
-    #legend .dot.green  { background: #3fb950; }
-    #legend .dot.yellow { background: #d29922; }
-    #legend .dot.red    { background: #f85149; }
+    #legend .dot.green  { background: var(--green); }
+    #legend .dot.yellow { background: var(--yellow); }
+    #legend .dot.red    { background: var(--red); }
+
+    /* Dica de navegação sobre o palco */
+    #stage-hint {
+      position: absolute;
+      bottom: 16px;
+      left: 18px;
+      z-index: 10;
+      font-size: 11.5px;
+      color: var(--muted);
+      line-height: 1.8;
+      pointer-events: none;
+    }
+
+    /* ─── Barra de status ───────────────────────────────────── */
+    #statusbar {
+      grid-area: status;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 0 16px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+    #statusbar .group { display: flex; align-items: center; gap: 18px; }
+    #statusbar .item { display: flex; align-items: center; gap: 6px; }
+    #statusbar .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+    #statusbar .dot.warn { background: var(--yellow); }
+    .mock-badge {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
+      color: #d29922; background: rgba(210,153,34,0.12);
+      border: 1px solid rgba(210,153,34,0.3);
+      border-radius: 5px; padding: 2px 8px;
+    }
+
+    @media (max-width: 1280px) {
+      #app { grid-template-columns: 260px 1fr; grid-template-areas: "topbar topbar" "side stage" "status status"; }
+      #aside { display: none; }
+    }
   </style>
 </head>
 <body>
 
-<div id="hud">
-  <h1>🏭 IoT Factory Floor <small>3D Monitoramento</small></h1>
-  <div class="stats">
-    <div class="stat"><div class="label">Online</div><div class="value online" id="stat-online">—</div></div>
-    <div class="stat"><div class="label">Alerta</div><div class="value alert" id="stat-alert">—</div></div>
-    <div class="stat"><div class="label">Offline</div><div class="value offline" id="stat-offline">—</div></div>
-  </div>
-</div>
+<div id="app">
 
-<div id="info-panel">
-  <button class="close-btn" id="panel-close">&times;</button>
-  <div class="header">
-    <h2 id="panel-name">Máquina</h2>
-    <span class="status-badge" id="panel-status">Online</span>
-  </div>
-  <div class="metrics">
-    <div class="metric"><div class="m-label">Temperatura</div><div class="m-value" id="panel-temp">—</div></div>
-    <div class="metric"><div class="m-label">Vibração</div><div class="m-value" id="panel-vib">—</div></div>
-    <div class="metric"><div class="m-label">Uso</div><div class="m-value" id="panel-usage">—</div></div>
-  </div>
-  <div class="command-area">
-    <select id="cmd-select">
-      <option value="">— Enviar comando —</option>
-      <option value="EMERGENCY_STOP">🛑 EMERGENCY_STOP</option>
-      <option value="PAUSE">⏸️ PAUSE</option>
-      <option value="RESUME">▶️ RESUME</option>
-      <option value="CALIBRATE">🔧 CALIBRATE</option>
-      <option value="SPEED_UP">⚡ SPEED_UP</option>
-      <option value="SLOW_DOWN">🐢 SLOW_DOWN</option>
-      <option value="CYCLE_START">🔄 CYCLE_START</option>
-    </select>
-    <button id="cmd-send">Enviar</button>
-  </div>
-</div>
+  <!-- ─── Top bar: identidade + operador autenticado ─────────────────────── -->
+  <header id="topbar">
+    <div class="brand">
+      <img src="https://gpssa.com.br/wp-content/uploads/2020/04/logo_branco.png"
+           alt="Grupo GPS"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='block';" />
+      <span class="brand-fallback">GPS</span>
+      <div class="divider"></div>
+      <div class="titles">
+        <h1>Central de Monitoramento IoT — Chão de Fábrica</h1>
+        <p>Unidade Industrial Guarulhos · Linha A · Turno 2 (14:00 – 22:00)</p>
+      </div>
+    </div>
 
-<div id="toast"></div>
+    <div class="session">
+      <div class="clock">
+        <div class="time" id="clock-time">--:--:--</div>
+        <div class="date" id="clock-date">—</div>
+      </div>
+      <div class="operator">
+        <div class="avatar">MS</div>
+        <div class="who">
+          <div class="name">Marcos Silveira</div>
+          <div class="meta">Matrícula 20458 · Operador Sênior</div>
+        </div>
+        <span class="auth-badge"><span class="pulse"></span> Autenticado</span>
+      </div>
+      <button class="btn-ghost" id="btn-logout">Encerrar sessão</button>
+    </div>
+  </header>
 
-<div id="legend">
-  <div><span class="dot green"></span> Online</div>
-  <div><span class="dot yellow"></span> Alerta</div>
-  <div><span class="dot red"></span> Offline</div>
+  <!-- ─── Instruções ao operador ─────────────────────────────────────────── -->
+  <aside id="sidebar" class="side-panel">
+    <div class="section">
+      <h3>Sessão do operador</h3>
+      <div class="kv"><span class="k">Usuário</span><span class="v">m.silveira</span></div>
+      <div class="kv"><span class="k">Perfil de acesso</span><span class="v">Operação · Nível 2</span></div>
+      <div class="kv"><span class="k">Login em</span><span class="v">14:02</span></div>
+      <div class="kv"><span class="k">Expira em</span><span class="v" id="session-expire">04:00:00</span></div>
+      <div class="kv"><span class="k">Permissão de comando</span><span class="v" style="color:var(--green)">Liberada</span></div>
+    </div>
+
+    <div class="section">
+      <h3>Como operar o painel</h3>
+      <ol class="steps">
+        <li><b>Navegue pela planta</b> — arraste com o botão esquerdo para orbitar e use o scroll para aproximar.</li>
+        <li><b>Selecione um ativo</b> — clique sobre a máquina para abrir as métricas de temperatura, vibração e uso.</li>
+        <li><b>Confira o status</b> — a cor do anel e do rótulo indica a condição atual do equipamento.</li>
+        <li><b>Envie um comando</b> — escolha a ação na lista e confirme em <b>Enviar</b>. O envio fica registrado em log.</li>
+        <li><b>Registre a ocorrência</b> — toda intervenção deve ser lançada no diário de turno ao final da ação.</li>
+      </ol>
+    </div>
+
+    <div class="section">
+      <h3>Procedimento em caso de alerta</h3>
+      <ol class="steps">
+        <li>Confirme a leitura do sensor no painel do ativo antes de qualquer ação.</li>
+        <li>Temperatura acima do limite: aplique <b>SLOW_DOWN</b> e acione a manutenção.</li>
+        <li>Vibração acima de 2,0 mm/s: aplique <b>PAUSE</b> e solicite inspeção mecânica.</li>
+        <li>Risco à integridade física: acione <b>EMERGENCY_STOP</b> e comunique o supervisor.</li>
+      </ol>
+      <div class="callout" style="margin-top:12px;">
+        <b>Atenção:</b> comandos de parada afetam a linha de produção. Use <kbd>EMERGENCY_STOP</kbd> apenas em situação de risco confirmado.
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Contatos do turno</h3>
+      <div class="kv"><span class="k">Supervisão</span><span class="v">Ramal 4102</span></div>
+      <div class="kv"><span class="k">Manutenção</span><span class="v">Ramal 4177</span></div>
+      <div class="kv"><span class="k">Segurança / SESMT</span><span class="v">Ramal 4190</span></div>
+      <div class="kv"><span class="k">Suporte TI / IoT</span><span class="v">Ramal 4008</span></div>
+    </div>
+  </aside>
+
+  <!-- ─── Palco 3D: a animação vive aqui dentro ──────────────────────────── -->
+  <main id="stage">
+    <div id="canvas-container"></div>
+
+    <div id="hud">
+      <h1>🏭 IoT Factory Floor <small>3D Monitoramento</small></h1>
+      <div class="stats">
+        <div class="stat"><div class="label">Online</div><div class="value online" id="stat-online">—</div></div>
+        <div class="stat"><div class="label">Alerta</div><div class="value alert" id="stat-alert">—</div></div>
+        <div class="stat"><div class="label">Offline</div><div class="value offline" id="stat-offline">—</div></div>
+      </div>
+    </div>
+
+    <div id="info-panel">
+      <button class="close-btn" id="panel-close">&times;</button>
+      <div class="header">
+        <h2 id="panel-name">Máquina</h2>
+        <span class="status-badge" id="panel-status">Online</span>
+      </div>
+      <div class="metrics">
+        <div class="metric"><div class="m-label">Temperatura</div><div class="m-value" id="panel-temp">—</div></div>
+        <div class="metric"><div class="m-label">Vibração</div><div class="m-value" id="panel-vib">—</div></div>
+        <div class="metric"><div class="m-label">Uso</div><div class="m-value" id="panel-usage">—</div></div>
+      </div>
+      <div class="command-area">
+        <select id="cmd-select">
+          <option value="">— Enviar comando —</option>
+          <option value="EMERGENCY_STOP">🛑 EMERGENCY_STOP</option>
+          <option value="PAUSE">⏸️ PAUSE</option>
+          <option value="RESUME">▶️ RESUME</option>
+          <option value="CALIBRATE">🔧 CALIBRATE</option>
+          <option value="SPEED_UP">⚡ SPEED_UP</option>
+          <option value="SLOW_DOWN">🐢 SLOW_DOWN</option>
+          <option value="CYCLE_START">🔄 CYCLE_START</option>
+        </select>
+        <button id="cmd-send">Enviar</button>
+      </div>
+      <div class="panel-hint">Comando executado como <b>m.silveira</b> · registrado no log de operação (simulado).</div>
+    </div>
+
+    <div id="toast"></div>
+
+    <div id="stage-hint">
+      <div>🖱️ Arraste para orbitar · scroll para zoom</div>
+      <div>👆 Clique em um ativo para ver as métricas</div>
+    </div>
+
+    <div id="legend">
+      <div><span class="dot green"></span> Online</div>
+      <div><span class="dot yellow"></span> Alerta</div>
+      <div><span class="dot red"></span> Offline</div>
+    </div>
+  </main>
+
+  <!-- ─── Alertas e indicadores do turno ─────────────────────────────────── -->
+  <aside id="aside" class="side-panel">
+    <div class="section">
+      <h3>Alertas ativos</h3>
+      <div class="alert-item critical">
+        <div class="ai-body">
+          <div class="ai-title">INJ-002 · Injetora 2</div>
+          <div class="ai-desc">Temperatura crítica 210 °C — acima do limite de 195 °C.</div>
+        </div>
+      </div>
+      <div class="alert-item">
+        <div class="ai-body">
+          <div class="ai-title">CNC-003 · Fresa CNC 1</div>
+          <div class="ai-desc">Temperatura elevada 89 °C — monitorar por 30 min.</div>
+        </div>
+      </div>
+      <div class="alert-item">
+        <div class="ai-body">
+          <div class="ai-title">CVY-003 · Esteira 3</div>
+          <div class="ai-desc">Vibração elevada 0,7 mm/s — verificar alinhamento.</div>
+        </div>
+      </div>
+      <div class="alert-item">
+        <div class="ai-body">
+          <div class="ai-title">FKL-003 · Empilhadeira 3</div>
+          <div class="ai-desc">Temperatura 66 °C em operação contínua.</div>
+        </div>
+      </div>
+      <div class="alert-item offline">
+        <div class="ai-body">
+          <div class="ai-title">ROB-003 · Braço Robô C</div>
+          <div class="ai-desc">Sem comunicação desde 13:47 — manutenção acionada.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Indicadores do turno</h3>
+      <div class="kv"><span class="k">Disponibilidade</span><span class="v" style="color:var(--green)">92,4 %</span></div>
+      <div class="kv"><span class="k">OEE estimado</span><span class="v">78,1 %</span></div>
+      <div class="kv"><span class="k">Peças produzidas</span><span class="v">14.820</span></div>
+      <div class="kv"><span class="k">Paradas não planejadas</span><span class="v" style="color:var(--yellow)">2</span></div>
+      <div class="kv"><span class="k">Comandos enviados</span><span class="v">7</span></div>
+    </div>
+
+    <div class="section">
+      <h3>Checklist do operador</h3>
+      <ol class="steps">
+        <li>Validar alertas abertos no início do turno.</li>
+        <li>Conferir sensores sem leitura nos últimos 15 min.</li>
+        <li>Registrar intervenções no diário de turno.</li>
+        <li>Passar pendências ao turno seguinte.</li>
+      </ol>
+    </div>
+  </aside>
+
+  <!-- ─── Barra de status ────────────────────────────────────────────────── -->
+  <footer id="statusbar">
+    <div class="group">
+      <span class="mock-badge">Ambiente de demonstração · dados simulados</span>
+      <span class="item"><span class="dot"></span> Broker MQTT: conectado (simulado)</span>
+      <span class="item"><span class="dot"></span> Gateway de borda: 16/16 ativos</span>
+      <span class="item"><span class="dot warn"></span> Latência média: 128 ms</span>
+    </div>
+    <div class="group">
+      <span class="item">Última atualização: <b id="last-update">—</b></span>
+      <span class="item">Grupo GPS · Plataforma IoT v0.9.0-mock</span>
+    </div>
+  </footer>
+
 </div>
 
 <script type="importmap">
@@ -865,6 +1225,41 @@ window.addEventListener('resize', () => {
 });
 
 console.log('🏭 IoT Factory Dashboard loaded —', MACHINES.length, 'machines');
+</script>
+<script>
+  // ─── UI de monitoramento (mock) — relógio, sessão e status ────────────────
+  const pad = (n) => String(n).padStart(2, '0');
+
+  function tickClock() {
+    const now = new Date();
+    document.getElementById('clock-time').textContent =
+      `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    document.getElementById('clock-date').textContent =
+      now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  }
+
+  let sessionSeconds = 4 * 60 * 60;
+  function tickSession() {
+    if (sessionSeconds > 0) sessionSeconds--;
+    const h = Math.floor(sessionSeconds / 3600);
+    const m = Math.floor((sessionSeconds % 3600) / 60);
+    const s = sessionSeconds % 60;
+    document.getElementById('session-expire').textContent = `${pad(h)}:${pad(m)}:${pad(s)}`;
+  }
+
+  function tickUpdate() {
+    const now = new Date();
+    document.getElementById('last-update').textContent =
+      `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  }
+
+  tickClock(); tickSession(); tickUpdate();
+  setInterval(() => { tickClock(); tickSession(); }, 1000);
+  setInterval(tickUpdate, 5000);
+
+  document.getElementById('btn-logout').addEventListener('click', () => {
+    alert('Sessão de demonstração — o encerramento de sessão não está habilitado nesta página mock.');
+  });
 </script>
 </body>
 </html>

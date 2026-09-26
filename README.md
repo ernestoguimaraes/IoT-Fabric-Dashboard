@@ -55,6 +55,19 @@ Cada máquina possui:
 
 ## 🎮 Funcionalidades
 
+### Moldura de monitoramento (mock)
+
+A animação 3D roda dentro de um container central, cercado pela interface de operação:
+
+- **Topbar** — logo do Grupo GPS, identificação da unidade/turno, relógio e o bloco do **operador autenticado** (nome, matrícula, perfil, badge "Autenticado", botão de encerrar sessão)
+- **Painel esquerdo** — dados da sessão (usuário, perfil de acesso, login, expiração, permissão de comando), passo a passo de como operar o painel, procedimento em caso de alerta e contatos do turno
+- **Painel direito** — alertas ativos, indicadores do turno (disponibilidade, OEE, produção) e checklist do operador
+- **Barra de status** — aviso de ambiente de demonstração, broker MQTT, gateways de borda, latência e última atualização
+
+> ⚠️ Todos os dados — inclusive o operador autenticado, login e sessão — são **mockados**. Não há autenticação real.
+
+### Interações
+
 1. **Clique em qualquer máquina** — abre painel com métricas em tempo real
 2. **Envio de comandos** — selecione um comando e clique "Enviar" para simular controle
 3. **Empilhadeiras animadas** — 3 veículos percorrendo trajetos predefinidos
