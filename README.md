@@ -15,6 +15,20 @@ start index.html
 
 **Navegação:** Arraste para orbitar, scroll para zoom.
 
+### ✨ Versão 2 — Cena 3D Cinematic (`index-v2.html`)
+
+Mesma moldura de monitoramento, mesmos dados mock e mesmo painel/comandos; muda apenas a cena 3D:
+
+- **Render cinematográfico:** reflexos de ambiente (PMREM), bloom, contorno azul no ativo selecionado, névoa e sombras suaves.
+- **Galpão detalhado:** piso de concreto texturizado, faixas de circulação, zonas de segurança zebradas, paredes de vidro, luminárias suspensas com feixes de luz, painel LED "Grupo GPS" e poeira no ar.
+- **Máquinas animadas:** CNC com janela e spindle girando, robôs de 6 eixos articulados (ROB-003 caído/offline), esteiras com correia e caixas em movimento, empilhadeiras com rodas, garfo e giroflex, injetoras com cilindros aquecidos (INJ-002 pulsando), prensa com curso do martelo e cortina de luz, célula de solda com faíscas e arco elétrico.
+- **Sinalização IoT:** torre de luz (andon) e tela IHM com gráfico ao vivo em cada máquina; feixe holográfico sobre ativos em alerta/offline.
+- **Câmera:** entrada cinematográfica e "modo vitrine" (órbita automática após 20 s sem interação).
+
+```bash
+start index-v2.html
+```
+
 ## 📊 Dados Mockados
 
 Todos os dados estão no array `MACHINES` no início do script (linha ~50 do `index.html`).
