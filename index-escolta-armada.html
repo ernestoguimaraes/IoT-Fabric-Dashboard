@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grupo GPS — Monitoramento de Escolta Armada · Proposta visual</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0f14; --panel: #11161d; --panel-2: #161b22; --line: #232b36;
+      --text: #e6edf3; --muted: #9aa7b5; --brand: #0a66c2; --blue: #58a6ff;
+      --green: #3fb950; --yellow: #d29922; --red: #f85149;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 13px 'Segoe UI', system-ui, sans-serif; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button { font: inherit; cursor: pointer; color: inherit; }
+    button:focus-visible, a:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
+    button:disabled { cursor: default; opacity: .65; }
+    a { color: var(--blue); }
+    h1, h2, h3, p { margin: 0; }
+    .app { min-height: 100vh; padding: 14px; display: grid; grid-template-columns: 250px minmax(0, 1fr) 292px; gap: 12px; grid-template-rows: auto auto 1fr auto; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+    .topbar { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; gap: 20px; background: linear-gradient(100deg, #0d2641, var(--panel) 48%); }
+    .brand, .session, .row { display: flex; align-items: center; gap: 12px; }
+    .brandmark { font-size: 27px; font-weight: 850; letter-spacing: -1.5px; line-height: .85; color: white; }
+    .brandmark small { display: block; font-size: 8px; letter-spacing: 3px; font-weight: 600; margin-bottom: 5px; }
+    .brand-divider { width: 1px; height: 34px; background: #354454; margin: 0 6px; }
+    h1 { font-size: 16px; font-weight: 600; }
+    .subtitle { color: var(--muted); font-size: 11px; margin-top: 4px; line-height: 1.5; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #305745; border-radius: 20px; padding: 4px 8px; color: #80d994; background: #153023; font-size: 10px; white-space: nowrap; font-weight: 600; }
+    .badge::before { content: ''; width: 5px; height: 5px; background: currentColor; border-radius: 50%; }
+    .badge.demo { color: #9ac8ff; background: #11283f; border-color: #274a70; }
+    .badge.warning { color: #ecc567; background: #302919; border-color: #645029; }
+    .clock { text-align: right; font-variant-numeric: tabular-nums; }
+    .clock strong { font-size: 18px; font-weight: 500; }
+    .avatar { border-radius: 9px; background: #174e81; width: 34px; height: 34px; display: grid; place-items: center; font-size: 11px; font-weight: 700; }
+    .operator { border-left: 1px solid var(--line); padding-left: 16px; }
+    .metrics { grid-column: 1 / -1; display: grid; grid-template-columns: 1.2fr repeat(3, 1fr); gap: 12px; }
+    .metric { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .eyebrow { font-size: 10px; text-transform: uppercase; letter-spacing: 1.25px; color: var(--muted); font-weight: 650; }
+    .metric strong { font-size: 27px; font-weight: 600; display: block; margin-top: 5px; letter-spacing: -1px; }
+    .metric strong small { font-size: 12px; color: var(--muted); font-weight: 400; letter-spacing: 0; }
+    .metric-icon { width: 39px; height: 39px; border: 1px solid #28405c; border-radius: 10px; display: grid; place-items: center; color: var(--blue); background: #112236; }
+    .icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .sidebar, .aside { padding: 18px; min-width: 0; }
+    .section + .section { border-top: 1px solid var(--line); padding-top: 20px; margin-top: 20px; }
+    .section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 8px; }
+    h2 { font-size: 13px; font-weight: 600; }
+    .count { font-size: 10px; padding: 2px 6px; background: #222d3a; border-radius: 4px; color: #b8c2cc; }
+    .mission { padding: 14px; border-radius: 9px; border: 1px solid #285481; background: linear-gradient(120deg, #112c48, #121d29); }
+    .mission strong { display: block; margin: 10px 0 3px; font-size: 19px; font-weight: 600; }
+    .mission p { font-size: 11px; color: #a8bad0; line-height: 1.6; }
+    .route-summary { padding: 16px 0 0 10px; }
+    .route-stop { position: relative; padding: 0 0 22px 19px; border-left: 1px dashed #3c5269; }
+    .route-stop:last-child { border: 0; padding-bottom: 0; }
+    .route-stop::before { content: ''; position: absolute; width: 7px; height: 7px; border: 2px solid var(--blue); border-radius: 50%; left: -4px; top: 3px; background: var(--panel); }
+    .route-stop strong { font-size: 11px; font-weight: 500; }
+    .vehicle { width: 100%; text-align: left; display: flex; gap: 10px; align-items: center; padding: 12px 10px; background: transparent; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; }
+    .vehicle:hover { background: #192432; }
+    .vehicle[aria-pressed="true"] { border-color: var(--brand); background: #10243a; box-shadow: inset 3px 0 var(--blue); }
+    .vehicle .vehicle-icon { color: var(--blue); background: #1b3046; padding: 8px; border-radius: 7px; display: flex; }
+    .vehicle strong { display: block; font-size: 12px; font-weight: 600; }
+    .vehicle small { font-size: 10px; color: var(--muted); }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); margin-left: auto; }
+    .dot.warning { background: var(--yellow); }
+    .team { display: flex; justify-content: space-between; align-items: center; margin-top: 13px; gap: 8px; }
+    .team strong { font-size: 11px; font-weight: 500; }
+    .team small { font-size: 10px; color: var(--muted); }
+    .center { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+    .stage { overflow: hidden; position: relative; flex: 1; min-height: 445px; background: #0d151e; }
+    .stage-header { padding: 18px 20px; position: relative; z-index: 1; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; background: linear-gradient(#111a25, #111a2500); }
+    .map { position: absolute; inset: 110px 0 56px; }
+    .map svg.scene { width: 100%; height: 100%; position: absolute; }
+    .marker { position: absolute; transform: translate(-50%, calc(-100% - 19px)); border: 1px solid #396793; border-radius: 8px; background: #11253c; padding: 8px 10px; display: flex; align-items: center; gap: 7px; box-shadow: 0 10px 22px #0009; white-space: nowrap; font-size: 10px; }
+    .marker[aria-pressed="true"] { color: white; background: #0a66c2; border-color: #88c8ff; box-shadow: 0 0 0 5px #168aff1c, 0 10px 22px #0009; }
+    .marker .icon { width: 18px; height: 18px; }
+    .marker-label { position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%); color: #b6c9df; font-size: 9px; padding: 3px 6px; background: #0b1520e6; border-radius: 4px; }
+    .map-place { position: absolute; font-size: 9px; color: #91a6bc; text-transform: uppercase; letter-spacing: 2px; pointer-events: none; }
+    .map-caption { position: absolute; left: 20px; bottom: 19px; color: #8094aa; font-size: 10px; }
+    .map-caption b { color: #b4c9df; font-weight: 400; }
+    .map-compass { position: absolute; right: 20px; bottom: 16px; color: #a1bbd2; width: 30px; height: 38px; text-align: center; font-size: 10px; }
+    .map-compass::after { content: '↑'; display: block; font-size: 23px; }
+    .map-legend { display: flex; gap: 14px; align-items: center; font-size: 10px; color: var(--muted); }
+    .stage-tools { display: flex; align-items: flex-end; flex-direction: column; gap: 10px; }
+    .marker::after { content: ''; position: absolute; left: 50%; top: 100%; height: 16px; border-left: 1px solid #58a6ff80; }
+    .convoy-car { filter: drop-shadow(0 3px 3px #000b); }
+    .location-pulse { transform-box: fill-box; transform-origin: center; animation: location-pulse 3s ease-out infinite; }
+    .route-energy { animation: route-energy 2.5s linear infinite; }
+    .beacon { animation: beacon 2.4s ease-in-out infinite; }
+    .stage:not(.is-playing) .location-pulse,
+    .stage:not(.is-playing) .route-energy,
+    .stage:not(.is-playing) .beacon { animation-play-state: paused; }
+    @keyframes location-pulse { from { transform: scale(.45); opacity: .7; } to { transform: scale(1.7); opacity: 0; } }
+    @keyframes route-energy { to { stroke-dashoffset: -60; } }
+    @keyframes beacon { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) {
+      .location-pulse, .route-energy, .beacon { animation: none; }
+    }
+    .legend-line { width: 20px; height: 2px; background: var(--blue); display: inline-block; vertical-align: middle; margin-right: 5px; }
+    .legend-line.pending { background: repeating-linear-gradient(90deg, #6a8096 0 4px, transparent 4px 7px); }
+    .journey { padding: 18px 20px; }
+    .journey-progress { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 15px 0 9px; }
+    .journey-progress strong { font-size: 20px; font-weight: 500; color: var(--blue); }
+    progress { display: block; width: 100%; height: 5px; border: 0; border-radius: 5px; overflow: hidden; background: #263545; accent-color: var(--blue); }
+    progress::-webkit-progress-bar { background: #263545; }
+    progress::-webkit-progress-value { background: var(--blue); }
+    progress::-moz-progress-bar { background: var(--blue); }
+    .milestones { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; }
+    .milestones strong { display: block; font-size: 10px; font-weight: 500; }
+    .milestones small { display: block; font-size: 10px; margin-top: 4px; color: var(--muted); }
+    .milestones .done strong { color: #80d994; }
+    .detail-id { font-size: 23px; margin: 2px 0 5px; font-weight: 600; letter-spacing: -.5px; }
+    .vehicle-profile { background: radial-gradient(ellipse at center, #173655, #11161d 70%); height: 103px; display: grid; place-items: center; margin: 10px 0; }
+    .vehicle-profile svg { width: 190px; height: 85px; }
+    .telemetry { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .telemetry div { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 11px; }
+    .telemetry dt { color: var(--muted); font-size: 10px; margin-bottom: 5px; }
+    .telemetry dd { margin: 0; font-size: 17px; font-weight: 500; }
+    .telemetry dd small { font-size: 10px; color: var(--muted); }
+    .kv { display: flex; justify-content: space-between; gap: 10px; margin-top: 12px; font-size: 11px; }
+    .kv span { color: var(--muted); }
+    .kv strong { font-weight: 500; }
+    .alert { border: 1px solid #554328; border-left: 3px solid var(--yellow); border-radius: 8px; background: #241f17; padding: 12px; }
+    .alert h3 { font-size: 12px; color: #ecc567; }
+    .alert p { color: #c2b495; font-size: 11px; line-height: 1.6; margin: 6px 0 11px; }
+    .button { border: 1px solid #39495b; background: #1a2838; border-radius: 6px; padding: 8px 10px; font-size: 11px; }
+    .button:hover:not(:disabled) { border-color: var(--blue); background: #22364e; }
+    .alert .button { width: 100%; background: #352c1e; border-color: #6b542a; color: #efd28e; }
+    .event { display: grid; grid-template-columns: 37px 1fr; gap: 9px; margin-top: 14px; font-size: 11px; line-height: 1.5; }
+    .event time { color: #8094aa; font-size: 10px; font-variant-numeric: tabular-nums; }
+    .event small { display: block; color: var(--muted); font-size: 10px; }
+    .status { grid-column: 1 / -1; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 10px; color: var(--muted); padding: 4px 6px; }
+    .status b { color: #b8c8d9; font-weight: 500; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+    @media (min-width: 1600px) { .app { grid-template-columns: 280px minmax(0, 1fr) 320px; } .stage { min-height: 530px; } }
+    @media (max-width: 1150px) {
+      .app { grid-template-columns: 220px minmax(0, 1fr); }
+      .aside { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+      .aside .section + .section { margin: 0; padding: 0 0 0 20px; border-top: 0; border-left: 1px solid var(--line); }
+      .operator { display: none; } .metric { padding: 14px; } .metric-icon { display: none; }
+    }
+    @media (max-width: 720px) {
+      .app { display: flex; flex-direction: column; padding: 10px; }
+      .topbar { flex-wrap: wrap; padding: 15px; } h1 { font-size: 14px; }
+      .session { justify-content: space-between; width: 100%; } .clock { display: flex; gap: 10px; align-items: center; }
+      .clock strong { font-size: 13px; } .clock .subtitle { margin: 0; }
+      .metrics { grid-template-columns: 1fr 1fr; } .metric strong { font-size: 24px; }
+      .center { order: 1; } .sidebar { order: 2; } .aside { order: 3; display: block; }
+      .status { order: 4; line-height: 1.6; }
+      .aside .section + .section { margin-top: 20px; padding: 20px 0 0; border-left: 0; border-top: 1px solid var(--line); }
+      .stage { min-height: 430px; } .stage-header { flex-wrap: wrap; padding: 16px; }
+      .map { top: 132px; } .marker { font-size: 9px; padding: 6px; gap: 3px; } .marker .icon { width: 14px; }
+      .stage-tools { width: 100%; flex-direction: row; align-items: center; justify-content: space-between; gap: 6px; }
+      .map-legend { gap: 8px; font-size: 9px; }
+      .map-place { letter-spacing: 1px; font-size: 8px; } .map-caption { left: 14px; font-size: 9px; max-width: 80%; }
+      .milestones { flex-wrap: wrap; } .milestones > div { min-width: 40%; }
+    }
+  </style>
+</head>
+<body>
+  <svg class="sr-only" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <symbol id="car" viewBox="0 0 24 24"><path d="m5 9 2-5h10l2 5M4 9h16v9H4zM7 18v2m10-2v2M7 13h2m6 0h2M9 9h6"/></symbol>
+      <symbol id="shield" viewBox="0 0 24 24"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6z"/><path d="m8 12 3 3 5-6"/></symbol>
+      <symbol id="signal" viewBox="0 0 24 24"><path d="M5 20v-4m5 4v-8m5 8V8m5 12V4"/></symbol>
+      <symbol id="time" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/></symbol>
+      <symbol id="alert" viewBox="0 0 24 24"><path d="m12 3 10 18H2zM12 9v5m0 3v1"/></symbol>
+    </defs>
+  </svg>
+  <div class="app">
+    <header class="topbar panel">
+      <div class="brand">
+        <div class="brandmark" aria-label="Grupo GPS"><small>GRUPO</small>GPS</div>
+        <span class="brand-divider" aria-hidden="true"></span>
+        <div><h1>Central de Escolta Armada</h1><p class="subtitle">Segurança integrada / Monitoramento de operações</p></div>
+      </div>
+      <div class="session">
+        <span class="badge demo">Proposta visual · DEMO</span>
+        <div class="clock"><strong>14:40:00</strong><div class="subtitle">28 set. 2026 · cenário simulado</div></div>
+        <div class="row operator"><div class="avatar">OP</div><div><strong>Operador demo</strong><p class="subtitle">Central de operações · perfil fictício</p></div></div>
+      </div>
+    </header>
+
+    <section class="metrics" aria-label="Resumo da operação simulada">
+      <div class="metric panel"><div><p class="eyebrow">Operação em andamento</p><strong>ESC-0248</strong><p class="subtitle">Transporte acompanhado · em deslocamento</p></div><div class="metric-icon"><svg class="icon"><use href="#shield"/></svg></div></div>
+      <div class="metric panel"><div><p class="eyebrow">Veículos conectados</p><strong>3 <small>/ 3 ativos</small></strong><p class="subtitle">Telemetria disponível no cenário</p></div><div class="metric-icon"><svg class="icon"><use href="#signal"/></svg></div></div>
+      <div class="metric panel"><div><p class="eyebrow">Chegada estimada</p><strong>15:25 <small>· 45 min</small></strong><p class="subtitle">Dentro da janela prevista</p></div><div class="metric-icon"><svg class="icon"><use href="#time"/></svg></div></div>
+      <div class="metric panel"><div><p class="eyebrow">Alertas pendentes</p><strong id="alert-count" style="color: #ecc567">01</strong><p class="subtitle" id="alert-summary">Atenção à bateria de um dispositivo</p></div><div class="metric-icon" style="color: #ecc567; border-color: #554328; background: #282317"><svg class="icon"><use href="#alert"/></svg></div></div>
+    </section>
+
+    <nav class="sidebar panel" aria-label="Operação e seleção de veículos">
+      <section class="section">
+        <div class="section-title"><h2>Operação selecionada</h2><span class="count">01</span></div>
+        <div class="mission"><span class="badge">Em deslocamento</span><strong>ESC-0248</strong><p>Cliente demonstração<br>Unidade Sudeste · turno da tarde</p></div>
+        <div class="route-summary">
+          <div class="route-stop"><p class="eyebrow">Origem</p><strong>Centro logístico Alpha</strong><p class="subtitle">Saída registrada · 13:10</p></div>
+          <div class="route-stop"><p class="eyebrow">Destino</p><strong>Unidade de distribuição Beta</strong><p class="subtitle">Previsão de chegada · 15:25</p></div>
+        </div>
+      </section>
+      <section class="section">
+        <div class="section-title"><h2>Veículos da operação</h2><span class="count">03</span></div>
+        <button class="vehicle" data-vehicle="ESC-01" aria-pressed="true"><span class="vehicle-icon"><svg class="icon" aria-hidden="true"><use href="#car"/></svg></span><span><strong>ESC-01</strong><small>Veículo de escolta · 68 km/h</small></span><span class="dot" aria-hidden="true"></span></button>
+        <button class="vehicle" data-vehicle="TRP-01" aria-pressed="false"><span class="vehicle-icon"><svg class="icon" aria-hidden="true"><use href="#car"/></svg></span><span><strong>TRP-01</strong><small>Transporte acompanhado · 66 km/h</small></span><span class="dot" aria-hidden="true"></span></button>
+        <button class="vehicle" data-vehicle="ESC-02" aria-pressed="false"><span class="vehicle-icon"><svg class="icon" aria-hidden="true"><use href="#car"/></svg></span><span><strong>ESC-02</strong><small>Veículo de escolta · bateria baixa</small></span><span class="dot warning" aria-hidden="true"></span></button>
+        <p class="subtitle">Selecione um veículo para inspecionar seus indicadores.</p>
+      </section>
+      <section class="section">
+        <div class="section-title"><h2>Equipe em serviço</h2><span class="count">04</span></div>
+        <div class="team"><div><strong>Equipe A · 2 agentes</strong><br><small>Vinculada ao ESC-01</small></div><span class="badge">Check-in</span></div>
+        <div class="team"><div><strong>Equipe B · 2 agentes</strong><br><small>Vinculada ao ESC-02</small></div><span class="badge">Check-in</span></div>
+        <p class="subtitle" style="margin-top: 15px">Identidades omitidas nesta proposta.</p>
+      </section>
+    </nav>
+
+    <main class="center">
+      <section class="stage panel" aria-label="Mapa esquemático da operação">
+        <div class="stage-header">
+          <div><p class="eyebrow" style="color: #58a6ff; margin-bottom: 7px">Visão da operação</p><h2>Um panorama. Toda a escolta.</h2></div>
+          <div class="stage-tools">
+            <div class="map-legend"><span><i class="legend-line"></i>Rastro visual</span><span><i class="legend-line pending"></i>Percurso</span></div>
+            <button class="button" id="toggle-animation" aria-controls="convoy-map" aria-describedby="animation-note">Reproduzir animação</button>
+          </div>
+        </div>
+        <div class="map" id="convoy-map">
+          <svg class="scene" viewBox="0 0 800 480" preserveAspectRatio="none" role="img" aria-label="Ilustração sem escala: rota entre Alpha e Beta, com três veículos selecionáveis">
+            <defs>
+              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse" patternTransform="skewX(-25)"><path d="M40 0H0V40" fill="none" stroke="#1a2b3c" stroke-width=".7"/></pattern>
+              <linearGradient id="terrain" x2="1" y2="1"><stop stop-color="#0d1925"/><stop offset="1" stop-color="#101e2b"/></linearGradient>
+              <radialGradient id="halo"><stop stop-color="#0a66c2" stop-opacity=".21"/><stop offset="1" stop-color="#0a66c2" stop-opacity="0"/></radialGradient>
+              <linearGradient id="headlight"><stop stop-color="#c5edff" stop-opacity=".45"/><stop offset="1" stop-color="#c5edff" stop-opacity="0"/></linearGradient>
+              <path id="convoy-route" d="m70 295 170 68L580 176l150 57"/>
+              <g id="escort-car">
+                <path d="M12-6 65-20V20L12 6Z" fill="url(#headlight)"/>
+                <rect x="-17" y="-9" width="34" height="18" rx="5" fill="#5483a6" stroke="#b4d8f2"/>
+                <path d="M2-7h7l3 3v8L9 7H2Z" fill="#0b2238"/><path d="M-12-6h8V6h-8Z" fill="#142e46"/>
+                <path d="M-9-11h7m-7 22h7M8-11h5m-5 22h5" stroke="#070d14" stroke-width="3"/>
+                <path d="M17-6v3m0 6v3" stroke="#e4f8ff" stroke-width="3"/>
+                <path class="beacon" d="M-1-6V6" stroke="#63cfff" stroke-width="3"/>
+                <path d="M-17-6v3m0 6v3" stroke="#f47c70" stroke-width="2"/>
+              </g>
+              <g id="transport-truck">
+                <path d="M21-6 70-20V20L21 6Z" fill="url(#headlight)"/>
+                <rect x="-24" y="-10" width="34" height="20" rx="2" fill="#8dabbf" stroke="#d6e6ef"/>
+                <path d="M-20-6H6m-26 6H6m-26 6H6" stroke="#627e93"/>
+                <rect x="11" y="-8" width="13" height="16" rx="3" fill="#3178a6" stroke="#b4d8f2"/>
+                <path d="M18-6h3V6h-3" fill="#102438"/><path d="M24-6v3m0 6v3" stroke="#e4f8ff" stroke-width="2"/>
+                <path d="M-19-12h8m-8 24h8M15-10h5m-5 20h5" stroke="#070d14" stroke-width="3"/>
+              </g>
+              <g id="block"><path d="m0 0 53-25 48 23-53 25Z" fill="#23384b"/><path d="m0 0 48 23v32L0 32Z" fill="#152535"/><path d="m48 23 53-25v32L48 55Z" fill="#1c3043"/><path d="m5 2 43 20 47-22" fill="none" stroke="#3b5267" stroke-width="1"/><path d="m56 30 34-16m-34 25 34-16" stroke="#2a455b" stroke-width="2"/></g>
+            </defs>
+            <path d="M0 0H800V480H0Z" fill="url(#terrain)"/>
+            <path d="M0 0H800V480H0Z" fill="url(#grid)"/>
+            <ellipse cx="450" cy="245" rx="340" ry="240" fill="url(#halo)"/>
+            <path d="M590-50Q465 45 580 115T610 245 760 420L850 500" fill="none" stroke="#122d39" stroke-width="55"/>
+            <path d="M590-50Q465 45 580 115T610 245 760 420L850 500" fill="none" stroke="#1f4050" stroke-width="2"/>
+            <g fill="none" stroke="#25384a" stroke-width="17">
+              <path d="m-20 120 240 123L610 50M70 500l220-138L800 90M-30 320 230 460M265-30l-18 100L800 375"/>
+            </g>
+            <g fill="none" stroke="#597087" stroke-opacity=".3" stroke-width="1">
+              <path d="m-20 120 240 123L610 50M70 500l220-138L800 90M-30 320 230 460M265-30l-18 100L800 375"/>
+            </g>
+            <g opacity=".9">
+              <use href="#block" transform="translate(95 115)"/><use href="#block" transform="translate(178 77) scale(.8)"/><use href="#block" transform="translate(281 138) scale(.7)"/>
+              <use href="#block" transform="translate(373 76) scale(1.1)"/><use href="#block" transform="translate(470 33) scale(.65)"/>
+              <use href="#block" transform="translate(158 324) scale(1.25)"/><use href="#block" transform="translate(306 361) scale(.8)"/>
+              <use href="#block" transform="translate(429 324) scale(.9)"/><use href="#block" transform="translate(516 362) scale(.65)"/>
+              <use href="#block" transform="translate(647 102) scale(.8)"/><use href="#block" transform="translate(686 308) scale(.9)"/>
+            </g>
+            <path d="m70 295 170 68L580 176l150 57" fill="none" stroke="#0b1119" stroke-width="32"/>
+            <path d="m70 295 170 68L580 176l150 57" fill="none" stroke="#35485c" stroke-width="27"/>
+            <path d="m70 295 170 68L580 176l150 57" fill="none" stroke="#667b90" stroke-width="1" stroke-dasharray="7 9"/>
+            <use href="#convoy-route" fill="none" stroke="#a7bed4" stroke-width="2" stroke-dasharray="5 7"/>
+            <g id="route-trail" fill="none">
+              <use href="#convoy-route" fill="none" stroke="#148bff" stroke-width="16" opacity=".16"/>
+              <use href="#convoy-route" fill="none" stroke="#58a6ff" stroke-width="3"/>
+            </g>
+            <use href="#convoy-route" class="route-energy" fill="none" stroke="#c2e8ff" stroke-width="2" stroke-dasharray="3 57" opacity=".6"/>
+            <circle cx="70" cy="295" r="6" fill="#102438" stroke="#58a6ff" stroke-width="3"/>
+            <circle cx="730" cy="233" r="6" fill="#102438" stroke="#b7cde2" stroke-width="3"/>
+            <g id="convoy-vehicles" aria-hidden="true">
+              <g id="location-halo"><ellipse rx="46" ry="28" fill="#168aff" fill-opacity=".1" stroke="#58a6ff" stroke-opacity=".35"/><ellipse class="location-pulse" rx="46" ry="28" fill="none" stroke="#58a6ff"/></g>
+              <g class="convoy-car" data-map-vehicle="ESC-02"><use href="#escort-car"/></g>
+              <g class="convoy-car" data-map-vehicle="TRP-01"><use href="#transport-truck"/></g>
+              <g class="convoy-car" data-map-vehicle="ESC-01"><use href="#escort-car"/></g>
+            </g>
+          </svg>
+          <span class="map-place" style="left: 8%; top: 45%">Alpha / origem</span>
+          <span class="map-place" style="right: 5%; top: 34%">Beta / destino</span>
+          <span class="map-place" style="left: 36%; top: 15%; color: #506b82">Distrito logístico</span>
+          <span class="map-place" style="left: 40%; top: 88%; color: #506b82">Corredor de integração</span>
+          <button class="marker" style="left: 54.5%; top: 53.1%" data-vehicle="ESC-01" aria-pressed="true" aria-label="Selecionar ESC-01 no mapa"><svg class="icon" aria-hidden="true"><use href="#car"/></svg>ESC-01<span class="marker-label">68 km/h</span></button>
+          <button class="marker" style="left: 39%; top: 67.3%" data-vehicle="TRP-01" aria-pressed="false" aria-label="Selecionar TRP-01 no mapa"><svg class="icon" aria-hidden="true"><use href="#car"/></svg>TRP-01</button>
+          <button class="marker" style="left: 23%; top: 71%" data-vehicle="ESC-02" aria-pressed="false" aria-label="Selecionar ESC-02 no mapa, bateria baixa"><svg class="icon" aria-hidden="true"><use href="#car"/></svg>ESC-02<span class="marker-label" style="color: #ecc567">Bateria 18%</span></button>
+        </div>
+        <p class="map-caption" id="animation-note"><b>ANIMAÇÃO ILUSTRATIVA EM LOOP</b> · Sem escala · Indicadores fixos</p>
+        <div class="map-compass" aria-hidden="true">N</div>
+      </section>
+      <section class="journey panel">
+        <div class="section-title"><h2>Jornada da operação</h2><span class="badge">Dentro do previsto</span></div>
+        <div class="journey-progress"><span class="subtitle">108 de 180 km · cenário fictício</span><strong>60<small style="font-size: 12px">%</small></strong></div>
+        <progress value="60" max="100" aria-label="Progresso da viagem: 60%"></progress>
+        <div class="milestones">
+          <div class="done"><strong>✓ Preparação concluída</strong><small>12:50 · checklist</small></div>
+          <div class="done"><strong>✓ Saída registrada</strong><small>13:10 · Alpha</small></div>
+          <div><strong style="color: #58a6ff">● Em deslocamento</strong><small>14:40 · posição do cenário</small></div>
+          <div><strong>○ Chegada prevista</strong><small>15:25 · Beta</small></div>
+        </div>
+      </section>
+    </main>
+
+    <aside class="aside panel" aria-label="Detalhes e ocorrências">
+      <section class="section">
+        <div class="section-title"><p class="eyebrow">Veículo selecionado</p><span class="badge" id="vehicle-status">Conectado</span></div>
+        <h2 class="detail-id" id="detail-id">ESC-01</h2><p class="subtitle" id="detail-role">Veículo de escolta · Equipe A</p>
+        <div class="vehicle-profile">
+          <svg viewBox="0 0 220 100" role="img" aria-label="Ilustração genérica de veículo, não representa o modelo real">
+            <ellipse cx="113" cy="82" rx="93" ry="8" fill="#080e16"/>
+            <path d="m20 56 22-8 22-27h77l30 29 30 9v18H20Z" fill="#274963" stroke="#5c819d"/>
+            <path d="m54 46 17-18h26v20Zm51-18h30l20 22h-50Z" fill="#0d2030" stroke="#476b88"/>
+            <path d="M106 52v19M22 62h177M76 56h10m34 0h10" stroke="#7795ac" stroke-width="1.5"/>
+            <path d="M22 60h12v7H22m156-7h20v6h-20" fill="#b7dbed"/>
+            <path d="M68 14h56v5H68Z" fill="#20364b"/>
+            <circle cx="57" cy="76" r="15" fill="#090f16" stroke="#40576c" stroke-width="3"/><circle cx="57" cy="76" r="7" fill="#839aac"/>
+            <circle cx="165" cy="76" r="15" fill="#090f16" stroke="#40576c" stroke-width="3"/><circle cx="165" cy="76" r="7" fill="#839aac"/>
+            <text x="120" y="68" fill="#bfdcf1" font-size="8" font-family="Segoe UI, sans-serif">GPS</text>
+          </svg>
+        </div>
+        <dl class="telemetry">
+          <div><dt>Velocidade</dt><dd><span id="speed">68</span> <small>km/h</small></dd></div>
+          <div><dt>Bateria do rastreador</dt><dd id="battery">92%</dd></div>
+          <div><dt>Conectividade</dt><dd id="connection">4G</dd></div>
+          <div><dt>Ignição</dt><dd id="ignition">Ligada</dd></div>
+        </dl>
+        <div class="kv"><span>Último sinal simulado</span><strong id="last-signal">14:39:58</strong></div>
+        <div class="kv"><span>Responsável</span><strong id="team">Equipe A · 2 agentes</strong></div>
+      </section>
+      <section class="section">
+        <div class="section-title"><h2>Central de alertas</h2><span class="count" id="pending-label">1 pendente</span></div>
+        <article class="alert">
+          <h3 id="alert-title">Bateria do rastreador baixa</h3>
+          <p>ESC-02 · carga em 18%. Comunicação disponível. Avaliação necessária pela central.</p>
+          <button class="button" id="acknowledge">Simular ciência do alerta</button>
+        </article>
+        <p class="subtitle" style="margin-top: 8px">A ciência não resolve a condição do dispositivo.</p>
+      </section>
+      <section class="section">
+        <div class="section-title"><h2>Histórico da operação</h2><span class="count">DEMO</span></div>
+        <div id="events">
+          <div class="event"><time>14:38</time><div>Bateria baixa identificada<small>ESC-02 · telemetria</small></div></div>
+          <div class="event"><time>14:30</time><div>Check-in das equipes recebido<small>Equipes A e B · registro simulado</small></div></div>
+          <div class="event"><time>13:10</time><div>Operação iniciada<small>Saída do centro logístico Alpha</small></div></div>
+        </div>
+      </section>
+    </aside>
+    <footer class="status"><span><b>AMBIENTE DE DEMONSTRAÇÃO</b> · Dados fictícios e estáticos · Sem integração ou autenticação real</span><span>Snapshot: 28/09/2026 14:40 BRT · <a href="index.html">Dashboard industrial ↗</a></span></footer>
+  </div>
+  <p id="announcement" class="sr-only" role="status"></p>
+  <script>
+    const vehicles = {
+      'ESC-01': { role: 'Veículo de escolta · Equipe A', speed: 68, battery: 92, connection: '4G', ignition: 'Ligada', signal: '14:39:58', team: 'Equipe A · 2 agentes' },
+      'TRP-01': { role: 'Transporte acompanhado · Motorista demo', speed: 66, battery: 86, connection: '4G', ignition: 'Ligada', signal: '14:39:57', team: 'Motorista demo' },
+      'ESC-02': { role: 'Veículo de escolta · Equipe B', speed: 65, battery: 18, connection: '4G', ignition: 'Ligada', signal: '14:39:55', team: 'Equipe B · 2 agentes' }
+    };
+    const selectionButtons = document.querySelectorAll('[data-vehicle]');
+    selectionButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const id = button.dataset.vehicle;
+        const vehicle = vehicles[id];
+        selectionButtons.forEach(item => item.setAttribute('aria-pressed', String(item.dataset.vehicle === id)));
+        const fields = {
+          'detail-id': id, 'detail-role': vehicle.role, speed: vehicle.speed,
+          battery: `${vehicle.battery}%`, connection: vehicle.connection,
+          ignition: vehicle.ignition, 'last-signal': vehicle.signal, team: vehicle.team
+        };
+        Object.entries(fields).forEach(([key, value]) => { document.getElementById(key).textContent = value; });
+        const warning = vehicle.battery < 20;
+        const status = document.getElementById('vehicle-status');
+        status.classList.toggle('warning', warning);
+        status.textContent = warning ? 'Bateria baixa' : 'Conectado';
+        document.getElementById('battery').style.color = warning ? '#ecc567' : '';
+        document.getElementById('announcement').textContent = `${id} selecionado. ${vehicle.speed} km/h. Bateria ${vehicle.battery}%. Detalhes no painel de veículos.`;
+      });
+    });
+    document.getElementById('acknowledge').addEventListener('click', event => {
+      event.currentTarget.disabled = true;
+      event.currentTarget.textContent = 'Ciência registrada · simulação';
+      document.getElementById('alert-count').textContent = '00';
+      document.getElementById('alert-summary').textContent = '1 alerta ciente · condição ainda ativa';
+      document.getElementById('pending-label').textContent = '1 ciente';
+      document.getElementById('alert-title').textContent = 'Bateria baixa · ciência registrada';
+      const entry = document.createElement('div');
+      entry.className = 'event';
+      const time = document.createElement('time');
+      time.textContent = '14:40';
+      const message = document.createElement('div');
+      message.textContent = 'Ciência do alerta registrada';
+      const detail = document.createElement('small');
+      detail.textContent = 'Operador demo · apenas nesta página';
+      message.append(detail);
+      entry.append(time, message);
+      document.getElementById('events').prepend(entry);
+      document.getElementById('announcement').textContent = 'Ciência simulada registrada. A bateria do ESC-02 permanece baixa. Recarregue a página para reiniciar a demonstração.';
+    });
+
+    const stage = document.querySelector('.stage');
+    const route = document.getElementById('convoy-route');
+    const routeLength = route.getTotalLength();
+    const trail = document.querySelectorAll('#route-trail use');
+    const halo = document.getElementById('location-halo');
+    const convoyGroup = document.getElementById('convoy-vehicles');
+    const toggleAnimation = document.getElementById('toggle-animation');
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const convoy = ['ESC-01', 'TRP-01', 'ESC-02'].map((id, index) => ({
+      id, offset: index * .15,
+      car: document.querySelector(`[data-map-vehicle="${id}"]`),
+      marker: document.querySelector(`.marker[data-vehicle="${id}"]`)
+    }));
+    const cycleDuration = 32000;
+    let elapsed = cycleDuration * .375;
+    let playing = !reducedMotion.matches;
+    let frameId = null;
+    let previousTime = null;
+
+    function drawConvoy() {
+      const phase = (elapsed % cycleDuration) / cycleDuration;
+      const lead = .42 + phase * .48;
+      // Fade the loop boundary instead of visibly teleporting back to the origin.
+      const opacity = Math.min(1, phase / .035, (1 - phase) / .035);
+      convoyGroup.style.opacity = opacity;
+      trail.forEach(path => path.setAttribute('stroke-dasharray', `${lead * routeLength} ${routeLength}`));
+      convoy.forEach(({ offset, car, marker }) => {
+        const distance = (lead - offset) * routeLength;
+        const point = route.getPointAtLength(distance);
+        const before = route.getPointAtLength(Math.max(0, distance - 12));
+        const after = route.getPointAtLength(Math.min(routeLength, distance + 12));
+        const angle = Math.atan2(after.y - before.y, after.x - before.x) * 180 / Math.PI;
+        car.setAttribute('transform', `translate(${point.x} ${point.y}) rotate(${angle})`);
+        marker.style.left = `${point.x / 8}%`;
+        marker.style.top = `${point.y / 4.8}%`;
+        marker.style.opacity = opacity;
+        if (marker.getAttribute('aria-pressed') === 'true') {
+          halo.setAttribute('transform', `translate(${point.x} ${point.y})`);
+        }
+      });
+    }
+
+    function animate(time) {
+      if (previousTime !== null) elapsed += Math.min(time - previousTime, 100);
+      previousTime = time;
+      drawConvoy();
+      frameId = requestAnimationFrame(animate);
+    }
+
+    function syncPlayback() {
+      if (frameId !== null) cancelAnimationFrame(frameId);
+      frameId = null;
+      previousTime = null;
+      const active = playing && !document.hidden;
+      stage.classList.toggle('is-playing', active);
+      toggleAnimation.textContent = playing ? 'Pausar animação' : 'Reproduzir animação';
+      if (active) frameId = requestAnimationFrame(animate);
+    }
+
+    toggleAnimation.addEventListener('click', () => {
+      playing = !playing;
+      syncPlayback();
+    });
+    // Keep moving targets still for mouse and keyboard selection.
+    convoy.forEach(({ marker }) => {
+      const pauseForSelection = () => {
+        playing = false;
+        syncPlayback();
+      };
+      marker.addEventListener('pointerenter', pauseForSelection);
+      marker.addEventListener('focus', pauseForSelection);
+    });
+    selectionButtons.forEach(button => button.addEventListener('click', drawConvoy));
+    reducedMotion.addEventListener('change', () => {
+      if (reducedMotion.matches) playing = false;
+      syncPlayback();
+    });
+    document.addEventListener('visibilitychange', syncPlayback);
+    drawConvoy();
+    syncPlayback();
+  </script>
+</body>
+</html>

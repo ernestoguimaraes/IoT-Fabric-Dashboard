@@ -15,6 +15,20 @@ start index.html
 
 **Navegação:** Arraste para orbitar, scroll para zoom.
 
+### 🛡️ Proposta visual — Escolta armada (`index-escolta-armada.html`)
+
+Abra [index-escolta-armada.html](index-escolta-armada.html) no navegador para visualizar a proposta de monitoramento de veículos e equipes em deslocamento. A página preserva a identidade do projeto: fundo escuro, azul GPS, cartões de indicadores, painéis laterais e barra de status. As versões industriais permanecem inalteradas.
+
+- **Visão central:** mapa vetorial em perspectiva, percurso ilustrativo, veículos selecionáveis e progresso da jornada.
+- **Animação:** comboio com dois veículos de escolta e um caminhão percorre a rota em loop, com faróis, rastro luminoso, fluxo de luz e pulso de localização no veículo selecionado. As posições animadas são ilustrativas e independentes dos indicadores fixos.
+- **Painel esquerdo:** operação, origem/destino, veículos e check-in das equipes.
+- **Painel direito:** telemetria do veículo selecionado, alerta de bateria e histórico.
+- **Interações:** selecione veículos na lista ou no mapa; simule a ciência do alerta para atualizar o contador e o histórico sem remover a condição de bateria baixa.
+- **Responsivo:** os painéis são empilhados em telas menores; seleção e botões também funcionam pelo teclado.
+- **Controle de movimento:** botão para pausar/reproduzir; apontar para um marcador ou focá-lo pelo teclado pausa o movimento para facilitar a seleção. A animação inicia pausada quando o sistema solicita movimento reduzido e é suspensa enquanto a aba está oculta.
+
+Todos os indicadores são fictícios e estáticos, com referência em 28/09/2026 às 14:40 BRT; apenas a cena do mapa é animada. O mapa é esquemático, sem escala, coordenadas ou posicionamento real. Não há autenticação, comunicação com equipes, envio de comandos ou integração de telemetria. A ciência do alerta existe apenas na página atual; recarregar reinicia a demonstração. O protótipo usa HTML, CSS e SVG locais, sem dependências externas.
+
 ### ✨ Versão 2 — Cena 3D Cinematic (`index-v2.html`)
 
 Mesma moldura de monitoramento, mesmos dados mock e mesmo painel/comandos; muda apenas a cena 3D:
