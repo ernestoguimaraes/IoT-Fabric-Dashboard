@@ -11,7 +11,7 @@ import { mountParamsModal } from './ui/paramsModal.js';
 import { mountAssistant } from './ui/assistant.js';
 
 const TELEMETRY_MODE = import.meta.env.VITE_TELEMETRY_MODE === 'fabric' ? 'fabric' : 'mock';
-const AGENT_MODE = import.meta.env.VITE_AGENT_MODE === 'foundry' ? 'foundry' : 'mock';
+const AGENT_MODE = import.meta.env.VITE_AGENT_MODE || 'mock';
 
 // ─── Cabeçalho: relógio, sessão ───────────────────────────────────────────
 let sessionSeconds = 4 * 60 * 60;
@@ -46,7 +46,7 @@ setConnection({ mode: source.mode });
 const agent = createAgent(AGENT_MODE, { snapshotOf: (id) => machineSnapshot(store.state.byId[id]) });
 const assistant = mountAssistant(agent);
 mountSidePanels({ source });
-mountInfoPanel({ onAsk: (q) => assistant.open(q) });
+mountInfoPanel({ onAsk: (q) => assistant.open(q), agentMode: agent.mode });
 mountParamsModal();
 
 source.start({ onTelemetry: applyTelemetry, onStatus: setConnection });

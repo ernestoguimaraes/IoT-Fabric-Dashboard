@@ -1,23 +1,29 @@
 // Adaptador do agente no Azure AI Foundry (via proxy /api/agent/chat).
-// O proxy mantém a credencial (DefaultAzureCredential) e devolve o threadId para
-// continuar a conversa.
+// O proxy mantém a credencial (DefaultAzureCredential) e devolve o conversationId
+// para continuar a conversa.
 
 export function createFoundryAgent({ apiBase = '' } = {}) {
-  let threadId = null;
+  let conversationId = null;
   return {
     mode: 'foundry',
-    label: 'Azure AI Foundry Agent',
-    async send(text, context) {
+    label: 'Microsoft Foundry Agent',
+    async send(text) {
       const res = await fetch(`${apiBase}/api/agent/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, context, threadId }),
+        body: JSON.stringify({ message: text, conversationId }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      threadId = data.threadId || threadId;
-      return { text: data.text, source: `Foundry · thread ${threadId?.slice(-6) || '—'}` };
+      if (typeof data.text !== 'string' || !data.text.trim()) {
+        throw new Error('Foundry não retornou uma resposta de texto.');
+      }
+      if (typeof data.conversationId !== 'string' || !data.conversationId) {
+        throw new Error('Foundry não retornou o ID da conversa.');
+      }
+      conversationId = data.conversationId;
+      return { text: data.text, source: `Foundry · conversa ${conversationId.slice(-6)}` };
     },
-    reset() { threadId = null; },
+    reset() { conversationId = null; },
   };
 }

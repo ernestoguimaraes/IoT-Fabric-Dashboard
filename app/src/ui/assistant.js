@@ -1,4 +1,4 @@
-// Pop-up do assistente virtual (agente Foundry ou mock), com contexto ao vivo da planta.
+// Foundry: conversa direta. Mock: assistente local com contexto da planta.
 import { $, el, esc, setText } from './dom.js';
 import { store } from '../state.js';
 import { buildContext } from '../integration/agent/context.js';
@@ -10,12 +10,18 @@ export function mountAssistant(agent) {
   const msgs = $('#as-msgs');
   const input = $('#as-input');
   const chips = $('#as-chips');
+  const isMock = agent.mode === 'mock';
   let busy = false;
 
-  setText($('#as-sub'), `${agent.label} · ${agent.mode === 'foundry' ? 'online' : 'demo'}`);
+  setText($('#as-sub'), isMock ? `${agent.label} · demo` : agent.label);
+  $('#as-ctx').style.display = isMock ? '' : 'none';
+  chips.style.display = isMock ? '' : 'none';
+  if (!isMock) input.placeholder = 'Envie uma mensagem ao agente Foundry…';
 
-  const greet = () => addMsg('bot',
-    'Olá! Sou o assistente da Linha A. Posso explicar como cada máquina funciona, por que um ativo está em alerta, quais parâmetros ajustar e a manutenção recomendada.\nSelecione uma máquina na cena ou pergunte direto.');
+  const greet = () => {
+    if (isMock) addMsg('bot',
+      'Olá! Sou o assistente da Linha A. Posso explicar como cada máquina funciona, por que um ativo está em alerta, quais parâmetros ajustar e a manutenção recomendada.\nSelecione uma máquina na cena ou pergunte direto.');
+  };
 
   function addMsg(kind, text, src) {
     const n = el('div', { class: `msg ${kind}` });
@@ -27,23 +33,27 @@ export function mountAssistant(agent) {
   }
 
   async function ask(text) {
-    text = text.trim();
-    if (!text || busy) return;
+    if (!text.trim() || busy) return;
+    if (isMock) text = text.trim();
     busy = true;
     $('#as-send').disabled = true;
+    $('#as-clear').disabled = true;
     input.value = '';
     addMsg('user', text);
-    const typing = addMsg('bot typing', 'Analisando telemetria');
+    const typing = addMsg('bot typing', isMock ? 'Analisando telemetria' : 'Aguardando Foundry…');
     try {
-      const res = await agent.send(text, buildContext(store.state));
+      const res = isMock
+        ? await agent.send(text, buildContext(store.state))
+        : await agent.send(text);
       typing.remove();
-      addMsg('bot', res.text || '(sem resposta)', res.source);
+      addMsg('bot', res.text, res.source);
     } catch (e) {
       typing.remove();
       addMsg('bot err', `Não consegui falar com o agente: ${e.message}`);
     } finally {
       busy = false;
       $('#as-send').disabled = false;
+      $('#as-clear').disabled = false;
       input.focus();
     }
   }
@@ -52,7 +62,7 @@ export function mountAssistant(agent) {
     box.classList.add('open');
     $('#assistant-fab').style.display = 'none';
     if (!msgs.children.length) greet();
-    if (prefill) ask(prefill); else input.focus();
+    if (isMock && prefill) ask(prefill); else input.focus();
   }
   function close() {
     box.classList.remove('open');
@@ -68,7 +78,7 @@ export function mountAssistant(agent) {
   });
 
   // contexto + sugestões reativos à seleção e ao estado das máquinas
-  store.subscribe(['selection', 'machines'], (s) => {
+  if (isMock) store.subscribe(['selection', 'machines'], (s) => {
     const m = s.selectedId ? s.byId[s.selectedId] : null;
     $('#as-ctx').innerHTML = m
       ? `Contexto: <b>${esc(m.id)} · ${esc(m.name)}</b> (${m.status === 'online' ? 'online' : m.status === 'alert' ? 'em alerta' : 'offline'})`

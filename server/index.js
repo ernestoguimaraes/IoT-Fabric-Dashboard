@@ -151,10 +151,14 @@ app.post('/api/commands', send(async ({ machineId, command, ts, source }) => {
 }));
 
 // ─── Agente Foundry ──────────────────────────────────────────────────────────
-app.post('/api/agent/chat', send(async ({ message, context, threadId }) => {
+app.post('/api/agent/chat', send(async ({ message, conversationId, threadId }) => {
   if (typeof message !== 'string' || !message.trim()) throw bad('message obrigatório');
   if (message.length > 4000) throw bad('mensagem muito longa');
-  return chat({ message: message.trim(), context, threadId: typeof threadId === 'string' ? threadId : undefined });
+  return chat({
+    message,
+    conversationId: typeof conversationId === 'string' ? conversationId : undefined,
+    threadId: typeof threadId === 'string' ? threadId : undefined,
+  });
 }));
 
 app.use('/api', (_req, res) => res.status(404).json({ error: 'rota não encontrada' }));

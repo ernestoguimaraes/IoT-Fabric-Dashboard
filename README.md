@@ -45,12 +45,12 @@ start index-v2.html
 
 ### ⚡ Versão SPA — reativa, Fabric RTI e assistente Foundry (`app/`)
 
-Aplicação de página única (Vite + JavaScript modular, sem framework) construída sobre a cena da v2, com identidade visual **AI Fabric** (marca própria e paleta teal/violeta, sem logo ou referências ao Grupo GPS). Por padrão roda **100% mock**; as integrações reais são ligadas pelo `.env`.
+Aplicação de página única (Vite + JavaScript modular, sem framework) construída sobre a cena da v2, com identidade visual **AI Fabric** (marca própria e paleta teal/violeta, sem logo ou referências ao Grupo GPS). Por padrão, telemetria e assistente são mock; `VITE_AGENT_MODE=foundry` ativa uma conversa direta com o **Microsoft Foundry**, sem fallback local.
 
 ```bash
 npm install
-npm run dev          # SPA em http://localhost:5173 (mock: simulador + agente local)
-npm run dev:all      # SPA + proxy /api (necessário para Fabric/Foundry)
+npm run dev          # SPA em http://localhost:5173 (telemetria e assistente mock por padrão)
+npm run dev:all      # SPA + proxy /api (necessário para o chat Foundry e Fabric)
 npm run build        # gera dist/ — `npm run server` também entrega a SPA buildada
 ```
 
@@ -59,7 +59,7 @@ npm run build        # gera dist/ — `npm run server` também entrega a SPA bui
 1. **Ajuste de parâmetros** — no painel da máquina, **⚙️ Ajustar parâmetros** abre uma janela com os setpoints do tipo de máquina: modo (Automático/Manual/Pausado/Desligado), velocidade, temperatura alvo, limites de alarme de temperatura e vibração e tempo de ciclo. Faixas e rótulos variam por tipo, a validação acontece em tempo real, **Restaurar padrão** volta aos valores de fábrica, **Cancelar**/Esc desfaz e **Aplicar** (ou Ctrl+Enter) publica.
 2. **Interface reativa** — um store central (`app/src/store.js`) notifica os componentes por tópico. Enquanto você edita, a **pré-visualização** já recalcula status, motivos, alertas, HUD, KPIs, lista de ativos, andon e IHM 3D e velocidade das animações. Depois de aplicar, o dispositivo recebe os setpoints e a telemetria **converge** para o novo ponto de equilíbrio (ex.: `SLOW_DOWN` na INJ-002 reduz a temperatura até sair do alerta). Os comandos (`PAUSE`, `EMERGENCY_STOP`, `RESUME`…) alteram o estado de fato.
 3. **Integração Fabric Real-Time Intelligence** — camada de adaptadores em `app/src/integration/telemetry/` (`mock` | `fabric`) com o mesmo contrato. O painel **Sincronização Fabric RTI** mostra a fonte, o estado, os eventos recebidos/publicados, os dispositivos sincronizados e a latência.
-4. **Assistente virtual agêntico** — botão 🤖 abre um chat com contexto ao vivo (máquina selecionada, telemetria, setpoints e alertas), sugestões contextuais e o botão **Perguntar** no painel. O modo `mock` usa uma base de conhecimento local; o modo `foundry` conversa com um agente do **Azure AI Foundry** (threads persistem durante a conversa).
+4. **Assistente virtual** — em `mock`, preserva a saudação, contexto da planta, sugestões e perguntas automáticas sobre máquinas. Em `foundry`, abre uma conversa vazia, sem saudação ou sugestões locais, e envia somente o texto digitado, sem anexar telemetria, instruções ou dados simulados. O botão **Perguntar** apenas abre o chat nesse modo. As respostas vêm exclusivamente do **Microsoft Foundry**; falhas e respostas sem texto são exibidas como erros, sem substituição por mock.
 
 **Arquitetura**
 
@@ -93,13 +93,15 @@ As credenciais ficam **somente no proxy**: SAS do Eventstream e Entra ID via `De
 | Variável | Uso |
 |---|---|
 | `VITE_TELEMETRY_MODE` | `mock` (padrão) ou `fabric` |
-| `VITE_AGENT_MODE` | `mock` (padrão) ou `foundry` |
+| `VITE_AGENT_MODE` | `mock` (padrão, assistente local) ou `foundry` (conversa direta com o agente, sem contexto local ou fallback) |
 | `FABRIC_EVENTSTREAM_CONNECTION_STRING` / `FABRIC_EVENTSTREAM_NAME` | Custom endpoint do Eventstream (protocolo Event Hubs) |
 | `FABRIC_KUSTO_URI` / `FABRIC_KUSTO_DATABASE` | Query URI e banco KQL do Eventhouse |
 | `FABRIC_TELEMETRY_TABLE` / `FABRIC_PARAMS_TABLE` / `FABRIC_POLL_MS` | Tabelas e intervalo de leitura |
 | `FABRIC_LOOPBACK=true` | Sem Fabric: o proxy emula Eventstream+Eventhouse em memória (testa o modo `fabric` de ponta a ponta) |
-| `FOUNDRY_PROJECT_ENDPOINT` / `FOUNDRY_AGENT_ID` | Endpoint do projeto (`https://<recurso>.services.ai.azure.com/api/projects/<projeto>`) e ID do agente (`asst_…`) |
-| `FOUNDRY_API_VERSION` | Versão da API do Agent Service (padrão `v1`) |
+| `FOUNDRY_PROJECT_ENDPOINT` / `FOUNDRY_AGENT_NAME` | Endpoint do projeto (`https://<recurso>.services.ai.azure.com/api/projects/<projeto>`) e nome do agente criado na nova UI do Foundry |
+| `FOUNDRY_AGENT_ID` | Alias legado; IDs `asst_…` continuam usando o Agent Service clássico |
+| `FOUNDRY_API_VERSION` | Versão da API do Foundry (padrão `v1`) |
+| `FOUNDRY_DEBUG` | `true` registra no console do proxy a mensagem do usuário, payload exato enviado, resposta e duração (`false` por padrão) |
 
 **Setup do Fabric RTI**
 
@@ -116,12 +118,16 @@ As credenciais ficam **somente no proxy**: SAS do Eventstream e Entra ID via `De
 
 **Setup do agente no Azure AI Foundry**
 
-1. Em um projeto do Foundry, crie um **agente** (ex.: `gpt-4o-mini`) com instruções como:
-   > Você é o assistente de manutenção e operação da Linha A da plataforma AI Fabric. Explique o funcionamento das máquinas (CNC, robôs, esteiras, empilhadeiras, injetoras, prensa e solda), interprete alarmes de temperatura/vibração e recomende ajustes de parâmetros e manutenção. Use somente os valores do contexto em tempo real enviado em cada execução; nunca invente leituras. Responda em português, de forma objetiva, citando o código da máquina.
+1. Na nova UI do Foundry, crie um agente de prompt (ex.: `gpt-5-mini`) no projeto e configure instruções como:
+   > Você é o assistente da plataforma AI Fabric. Responda às mensagens do usuário em português. Não invente leituras, comandos disponíveis ou ações executadas; utilize somente informações e ferramentas realmente disponíveis no agente.
 2. Opcional: anexe manuais das máquinas via **File search** como base de conhecimento.
-3. Conceda ao usuário/identidade do proxy o papel **Azure AI User** no projeto, preencha `FOUNDRY_PROJECT_ENDPOINT` e `FOUNDRY_AGENT_ID` e defina `VITE_AGENT_MODE=foundry`.
+3. Conceda ao usuário/identidade do proxy o papel **Azure AI User** no projeto, preencha `FOUNDRY_PROJECT_ENDPOINT` e `FOUNDRY_AGENT_NAME` com o nome do agente criado na nova UI e defina `VITE_AGENT_MODE=foundry`.
 
-O contexto ao vivo da planta é enviado como `additional_instructions` a cada execução, e o histórico fica na thread do agente.
+O proxy chama o endpoint de Responses do agente (`/agents/{nome}/endpoint/protocols/openai/responses`) e mantém o histórico em uma conversation. Envia somente a mensagem digitada e o ID da conversa, sem contexto da planta ou instruções adicionais; as instruções e ferramentas são as configuradas no próprio Foundry. Agentes clássicos com IDs `asst_…` continuam suportados pelo endpoint legado de threads/runs, também sem instruções locais adicionais. A resposta textual é preservada, incluindo citações. Ao migrar de uma conversa que já recebeu dados simulados, use **Nova conversa** para não reutilizar esse histórico no Foundry.
+
+Ative `FOUNDRY_DEBUG=true` no `.env` e reinicie o proxy para ver os blocos de requisição/resposta do agente no console. O bloco `Payload enviado ao Foundry` mostra o método, caminho e corpo JSON exato da requisição; `input` contém somente o texto digitado. Cabeçalhos de autenticação não são registrados. Esse modo registra o conteúdo das mensagens; use apenas em ambientes apropriados e desative após depurar.
+
+Regressões do chat (Node 24): `node --experimental-test-module-mocks --test tests\agent.test.js`. Os testes isolam as chamadas de rede e verificam os modos Foundry e mock, sem acessar o Azure.
 
 **Estrutura**
 

@@ -4,13 +4,14 @@ import { store, selectMachine, openEditor, sendCommand } from '../state.js';
 import { MODES, TYPE_LABEL } from '../shared/machines.js';
 import { STATUS_LABEL } from '../shared/rules.js';
 
-export function mountInfoPanel({ onAsk }) {
+export function mountInfoPanel({ onAsk, agentMode }) {
   const panel = $('#info-panel');
   const prevStatus = {};
 
   $('#panel-close').addEventListener('click', () => selectMachine(null));
   $('#btn-params').addEventListener('click', () => store.state.selectedId && openEditor(store.state.selectedId));
   $('#btn-ask').addEventListener('click', () => {
+    if (agentMode === 'foundry') { onAsk(); return; }
     const m = store.state.byId[store.state.selectedId];
     if (!m) return;
     onAsk(m.status === 'online' ? `Como funciona a ${m.id}?` : `Por que a ${m.id} está em ${STATUS_LABEL[m.status].toLowerCase()}?`);
