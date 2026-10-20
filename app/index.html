@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Fabric — Central de Monitoramento IoT</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%AD%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="./src/styles.css" />
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ─── Top bar ─────────────────────────────────────────────────────────── -->
+  <header id="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-label="AI Fabric">
+        <svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true">
+          <defs>
+            <linearGradient id="bm-g" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#2dd4bf" /><stop offset="1" stop-color="#8b5cf6" />
+            </linearGradient>
+          </defs>
+          <path d="M8 6h20l-6 10H14l-2 4h12l-6 10H6l6-10H8z" fill="url(#bm-g)" opacity="0.95" />
+          <circle cx="31" cy="27" r="5" fill="none" stroke="#a78bfa" stroke-width="2" />
+          <circle cx="31" cy="27" r="1.8" fill="#e9d5ff" />
+        </svg>
+        <span class="wordmark">AI <b>Fabric</b></span>
+      </div>
+      <div class="divider"></div>
+      <div class="titles">
+        <h1>Central de Monitoramento IoT — Chão de Fábrica</h1>
+        <p>Unidade Industrial Guarulhos · Linha A · Turno 2 (14:00 – 22:00)</p>
+      </div>
+    </div>
+
+    <div class="session">
+      <div class="clock">
+        <div class="time" id="clock-time">--:--:--</div>
+        <div class="date" id="clock-date">—</div>
+      </div>
+      <div class="operator">
+        <div class="avatar">MS</div>
+        <div class="who">
+          <div class="name">Marcos Silveira</div>
+          <div class="meta">Matrícula 20458 · Operador Sênior</div>
+        </div>
+        <span class="auth-badge"><span class="pulse"></span> Autenticado</span>
+      </div>
+      <button class="btn-ghost" id="btn-logout">Encerrar sessão</button>
+    </div>
+  </header>
+
+  <!-- ─── Instruções ao operador ─────────────────────────────────────────── -->
+  <aside id="sidebar" class="side-panel">
+    <div class="section">
+      <h3>Sessão do operador</h3>
+      <div class="kv"><span class="k">Usuário</span><span class="v">m.silveira</span></div>
+      <div class="kv"><span class="k">Perfil de acesso</span><span class="v">Operação · Nível 2</span></div>
+      <div class="kv"><span class="k">Login em</span><span class="v">14:02</span></div>
+      <div class="kv"><span class="k">Expira em</span><span class="v" id="session-expire">04:00:00</span></div>
+      <div class="kv"><span class="k">Permissão de comando</span><span class="v" style="color:var(--green)">Liberada</span></div>
+    </div>
+
+    <div class="section">
+      <h3>Ativos da linha</h3>
+      <div class="machine-list" id="machine-list"></div>
+    </div>
+
+    <div class="section">
+      <h3>Como operar o painel</h3>
+      <ol class="steps">
+        <li><b>Selecione um ativo</b> — clique na máquina (cena 3D ou lista acima) para abrir as métricas ao vivo.</li>
+        <li><b>Ajuste parâmetros</b> — use <b>⚙️ Ajustar parâmetros</b>: cada alteração já reflete na cena e nos alertas (pré-visualização). <b>Aplicar</b> sincroniza com o dispositivo.</li>
+        <li><b>Envie um comando</b> — escolha a ação e confirme em <b>Enviar</b>; o efeito aparece imediatamente.</li>
+        <li><b>Tire dúvidas</b> — o <b>Assistente IoT</b> (botão 🤖) explica alarmes e o funcionamento de cada máquina.</li>
+      </ol>
+    </div>
+
+    <div class="section">
+      <h3>Procedimento em caso de alerta</h3>
+      <ol class="steps">
+        <li>Confirme a leitura do sensor no painel do ativo antes de qualquer ação.</li>
+        <li>Temperatura acima do limite: aplique <b>SLOW_DOWN</b> ou reduza a temperatura alvo e acione a manutenção.</li>
+        <li>Vibração acima do limite: aplique <b>PAUSE</b> e solicite inspeção mecânica.</li>
+        <li>Risco à integridade física: acione <b>EMERGENCY_STOP</b> e comunique o supervisor.</li>
+      </ol>
+      <div class="callout" style="margin-top:12px;">
+        <b>Atenção:</b> comandos de parada afetam a linha de produção. Use <kbd>EMERGENCY_STOP</kbd> apenas em situação de risco confirmado.
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Contatos do turno</h3>
+      <div class="kv"><span class="k">Supervisão</span><span class="v">Ramal 4102</span></div>
+      <div class="kv"><span class="k">Manutenção</span><span class="v">Ramal 4177</span></div>
+      <div class="kv"><span class="k">Segurança / SESMT</span><span class="v">Ramal 4190</span></div>
+      <div class="kv"><span class="k">Suporte TI / IoT</span><span class="v">Ramal 4008</span></div>
+    </div>
+  </aside>
+
+  <!-- ─── Palco 3D ───────────────────────────────────────────────────────── -->
+  <main id="stage">
+    <div id="canvas-container"></div>
+
+    <div id="hud">
+      <h1>🏭 IoT Factory Floor <small>SPA · reativa · Fabric RTI</small></h1>
+      <div class="stats">
+        <div class="stat"><div class="label">Online</div><div class="value online" id="stat-online">—</div></div>
+        <div class="stat"><div class="label">Alerta</div><div class="value alert" id="stat-alert">—</div></div>
+        <div class="stat"><div class="label">Offline</div><div class="value offline" id="stat-offline">—</div></div>
+      </div>
+    </div>
+
+    <div id="info-panel" role="dialog" aria-labelledby="panel-name">
+      <button class="close-btn" id="panel-close" aria-label="Fechar">&times;</button>
+      <div class="header">
+        <div>
+          <h2 id="panel-name">Máquina</h2>
+          <div class="m-sub" id="panel-type">—</div>
+        </div>
+        <span class="status-badge" id="panel-status">Online</span>
+      </div>
+      <div class="reasons" id="panel-reasons"></div>
+      <div class="metrics">
+        <div class="metric"><div class="m-label">Temperatura</div><div class="m-value" id="panel-temp">—</div><div class="bar"><i id="bar-temp"></i></div></div>
+        <div class="metric"><div class="m-label">Vibração</div><div class="m-value" id="panel-vib">—</div><div class="bar"><i id="bar-vib"></i></div></div>
+        <div class="metric"><div class="m-label">Uso</div><div class="m-value" id="panel-usage">—</div><div class="bar"><i id="bar-usage"></i></div></div>
+      </div>
+      <div class="params-summary" id="panel-params"></div>
+      <div class="actions-row">
+        <button class="btn btn-primary" id="btn-params">⚙️ Ajustar parâmetros</button>
+        <button class="btn btn-outline" id="btn-ask">🤖 Perguntar ao assistente</button>
+      </div>
+      <div class="command-area">
+        <select id="cmd-select" aria-label="Comando">
+          <option value="">— Enviar comando —</option>
+          <option value="EMERGENCY_STOP">🛑 EMERGENCY_STOP</option>
+          <option value="PAUSE">⏸️ PAUSE</option>
+          <option value="RESUME">▶️ RESUME</option>
+          <option value="CALIBRATE">🔧 CALIBRATE</option>
+          <option value="SPEED_UP">⚡ SPEED_UP</option>
+          <option value="SLOW_DOWN">🐢 SLOW_DOWN</option>
+          <option value="CYCLE_START">🔄 CYCLE_START</option>
+        </select>
+        <button id="cmd-send">Enviar</button>
+      </div>
+      <div class="panel-hint" id="panel-hint">—</div>
+    </div>
+
+    <div id="toast"></div>
+
+    <div id="stage-hint">
+      <div>🖱️ Arraste para orbitar · scroll para zoom</div>
+      <div>👆 Clique em um ativo para ver as métricas</div>
+      <div>🎬 Modo vitrine: a câmera orbita após 20 s sem interação</div>
+    </div>
+
+    <div id="legend">
+      <div><span class="dot green"></span> Online</div>
+      <div><span class="dot yellow"></span> Alerta</div>
+      <div><span class="dot red"></span> Offline</div>
+    </div>
+  </main>
+
+  <!-- ─── Alertas, indicadores e eventos ─────────────────────────────────── -->
+  <aside id="aside" class="side-panel">
+    <div class="section">
+      <h3>Alertas ativos <span id="alert-count"></span></h3>
+      <div id="alerts"></div>
+    </div>
+
+    <div class="section">
+      <h3>Indicadores do turno</h3>
+      <div id="kpis"></div>
+    </div>
+
+    <div class="section">
+      <h3>Sincronização Fabric RTI</h3>
+      <div id="sync-info"></div>
+    </div>
+
+    <div class="section">
+      <h3>Eventos recentes</h3>
+      <div id="event-log"></div>
+    </div>
+  </aside>
+
+  <!-- ─── Barra de status ────────────────────────────────────────────────── -->
+  <footer id="statusbar">
+    <div class="group">
+      <span class="mock-badge" id="env-badge">Ambiente de demonstração · dados simulados</span>
+      <span class="item conn-pill"><span class="dot" id="conn-dot"></span> <span id="conn-text">Conectando…</span></span>
+      <span class="item" id="gw-text">Gateway de borda: —</span>
+      <span class="item"><span class="dot" id="lat-dot"></span> Latência: <b id="lat-text">—</b></span>
+    </div>
+    <div class="group">
+      <span class="item">Última sincronização: <b id="last-update">—</b></span>
+      <span class="item">AI Fabric · Real-Time Intelligence + Foundry Agents · v1.0.0</span>
+    </div>
+  </footer>
+</div>
+
+<!-- ─── Modal: ajuste de parâmetros ───────────────────────────────────────── -->
+<div class="modal-backdrop" id="params-modal" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pm-title">
+    <header>
+      <div>
+        <h2 id="pm-title">Ajuste de parâmetros</h2>
+        <p id="pm-sub">—</p>
+      </div>
+      <button class="close-x" id="pm-close" aria-label="Fechar">&times;</button>
+    </header>
+    <div class="live" id="pm-live"></div>
+    <form id="pm-form" novalidate></form>
+    <footer>
+      <div class="left" id="pm-note">Alterações são pré-visualizadas ao vivo. <b>Aplicar</b> publica no Eventstream para o dispositivo.</div>
+      <div class="right">
+        <button class="btn btn-outline btn-sm" id="pm-reset" type="button">Restaurar padrão</button>
+        <button class="btn btn-outline" id="pm-cancel" type="button">Cancelar</button>
+        <button class="btn btn-success" id="pm-apply" type="button">Aplicar</button>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<!-- ─── Assistente virtual (agente Foundry) ───────────────────────────────── -->
+<button id="assistant-fab" aria-label="Abrir assistente virtual" title="Assistente IoT">🤖<span class="ping"></span></button>
+<section id="assistant" aria-label="Assistente virtual">
+  <header>
+    <div class="av">🤖</div>
+    <div class="t"><b>Assistente IoT</b><span id="as-sub">Agente · —</span></div>
+    <button id="as-clear" title="Nova conversa">⟲</button>
+    <button id="as-close" title="Fechar">✕</button>
+  </header>
+  <div class="ctx" id="as-ctx">Contexto: <b>planta inteira</b></div>
+  <div class="msgs" id="as-msgs"></div>
+  <div class="chips" id="as-chips"></div>
+  <form id="as-form">
+    <textarea id="as-input" placeholder="Pergunte sobre o funcionamento das máquinas…" aria-label="Mensagem"></textarea>
+    <button class="btn btn-primary" type="submit" id="as-send">Enviar</button>
+  </form>
+</section>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

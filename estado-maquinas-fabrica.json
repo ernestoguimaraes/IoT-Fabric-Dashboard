@@ -1,0 +1,296 @@
+{
+  "schemaVersion": "1.0",
+  "language": "pt-BR",
+  "title": "Estado de referência das máquinas da fábrica",
+  "plant": "Unidade Industrial Guarulhos · Linha A · Turno 2",
+  "source": {
+    "kind": "mock",
+    "files": [
+      "app/src/shared/machines.js",
+      "app/src/shared/rules.js",
+      "app/src/integration/agent/context.js"
+    ],
+    "scope": "Estado inicial dos 16 ativos cadastrados no projeto, antes de executar a simulação ou aplicar comandos e ajustes.",
+    "isLiveTelemetry": false,
+    "observedAt": null,
+    "limitations": [
+      "Dados fictícios para demonstração e testes; não representam medições de uma fábrica real.",
+      "Não é uma captura da sessão aberta no navegador nem uma consulta ao Microsoft Fabric.",
+      "O simulador modifica as leituras durante a execução; comandos e ajustes podem alterar os estados.",
+      "Data e hora de medição não estão disponíveis para estes valores de referência.",
+      "As leituras do ROB-003 estão desatualizadas por perda de comunicação e não comprovam a condição física atual do equipamento."
+    ]
+  },
+  "knowledgeGuidance": [
+    "Responder em português e identificar os ativos pelo código da máquina.",
+    "Apresentar os valores como um snapshot estático simulado, nunca como telemetria atual em tempo real.",
+    "Usar somente as leituras, limites e estados presentes neste documento; não inventar histórico, diagnósticos ou medições.",
+    "Online significa ausência de alertas segundo as regras configuradas; não é garantia de segurança ou ausência de falhas.",
+    "Offline por perda de comunicação não significa necessariamente que a máquina esteja fisicamente desligada.",
+    "Alertas descrevem condições detectadas, não causas confirmadas de falha."
+  ],
+  "units": {
+    "telemetry.temp": "°C",
+    "telemetry.vib": "mm/s",
+    "telemetry.usage": "%",
+    "params.speed": "%",
+    "params.targetTemp": "°C",
+    "params.tempLimit": "°C",
+    "params.vibLimit": "mm/s",
+    "params.cycleTime": "s"
+  },
+  "statusRules": {
+    "precedence": ["commLost", "mode_off", "temperature_vibration_or_paused", "online"],
+    "offline": "commLost igual a true ou params.mode igual a off. A avaliação retorna offline sem avaliar os demais alertas.",
+    "alert": "Sem condição offline, telemetry.temp >= params.tempLimit, telemetry.vib >= params.vibLimit ou params.mode igual a paused.",
+    "online": "Sem perda de comunicação, modo diferente de off e paused, temperatura e vibração abaixo dos respectivos limites.",
+    "temperatureSeverity": "critical quando telemetry.temp >= params.tempLimit * 1.05; caso contrário, warn quando telemetry.temp >= params.tempLimit.",
+    "vibrationSeverity": "warn quando telemetry.vib >= params.vibLimit.",
+    "severityNote": "critical é a severidade do alerta de temperatura; o status da máquina continua sendo alert."
+  },
+  "summary": {
+    "total": 16,
+    "online": 11,
+    "alert": 4,
+    "offline": 1,
+    "machinesWithCriticalTemperature": 1,
+    "alertMachineIds": ["CNC-003", "CVY-003", "FKL-003", "INJ-002"],
+    "offlineMachineIds": ["ROB-003"]
+  },
+  "machines": [
+    {
+      "id": "CNC-001",
+      "name": "Torno CNC 1",
+      "type": "cnc",
+      "typeLabel": "Centro de usinagem CNC",
+      "status": "online",
+      "statusLabel": "Online",
+      "commLost": false,
+      "telemetryQuality": "simulated_reference",
+      "telemetry": { "temp": 72, "vib": 0.8, "usage": 87 },
+      "params": { "mode": "auto", "modeLabel": "Automático", "speed": 100, "targetTemp": 72, "tempLimit": 85, "vibLimit": 1.5, "cycleTime": 42 },
+      "reasons": [],
+      "alerts": []
+    },
+    {
+      "id": "CNC-002",
+      "name": "Torno CNC 2",
+      "type": "cnc",
+      "typeLabel": "Centro de usinagem CNC",
+      "status": "online",
+      "statusLabel": "Online",
+      "commLost": false,
+      "telemetryQuality": "simulated_reference",
+      "telemetry": { "temp": 68, "vib": 0.6, "usage": 92 },
+      "params": { "mode": "auto", "modeLabel": "Automático", "speed": 100, "targetTemp": 68, "tempLimit": 85, "vibLimit": 1.5, "cycleTime": 38 },
+      "reasons": [],
+      "alerts": []
+    },
+    {
+      "id": "CNC-003",
+      "name": "Fresa CNC 1",
+      "type": "cnc",
+      "typeLabel": "Centro de usinagem CNC",
+      "status": "alert",
+      "statusLabel": "Alerta",
+      "commLost": false,
+      "telemetryQuality": "simulated_reference",
+      "telemetry": { "temp": 89, "vib": 1.4, "usage": 76 },
+      "params": { "mode": "auto", "modeLabel": "Automático", "speed": 100, "targetTemp": 89, "tempLimit": 85, "vibLimit": 1.5, "cycleTime": 55 },
+      "reasons": ["Temperatura elevada de 89 °C; limite de 85 °C."],
+      "alerts": [
+        { "metric": "temp", "level": "warn", "value": 89, "limit": 85, "unit": "°C" }
+      ]
+    },
+    {
+      "id": "ROB-001",
+      "name": "Braço Robô A",
+      "type": "robot",
+      "typeLabel": "Robô industrial 6 eixos",
+      "status": "online",
+      "statusLabel": "Online",
+      "commLost": false,
+      "telemetryQuality": "simulated_reference",
+      "telemetry": { "temp": 55, "vib": 0.3, "usage": 64 },
+      "params": { "mode": "auto", "modeLabel": "Automático", "speed": 100, "targetTemp": 55, "tempLimit": 70, "vibLimit": 1.0, "cycleTime": 8 },
+      "reasons": [],
+      "alerts": []
+    },
+    {
+      "id": "ROB-002",
+      "name": "Braço Robô B",
+      "type": "robot",
+      "typeLabel": "Robô industrial 6 eixos",
+      "status": "online",
+      "statusLabel": "Online",
+      "commLost": false,
+      "telemetryQuality": "simulated_reference",
+      "telemetry": { "temp": 52, "vib": 0.4, "usage": 71 },
+      "params": { "mode": "auto", "modeLabel": "Automático", "speed": 100, "targetTemp": 52, "tempLimit": 70, "vibLimit": 1.0, "cycleTime": 8 },
+      "reasons": [],
+      "alerts": []
+    },
+    {
+      "id": "ROB-003",
+      "name": "Braço Robô C",
+      "type": "robot",
+      "typeLabel": "Robô industrial 6 eixos",
+      "status": "offline",
+      "statusLabel": "Offline",
+      "commLost": true,
+      "telemetryQuality": "stale_simulated_reference",
+      "telemetry": { "temp": 30, "vib": 0, "usage": 0 },
+      "params": { "mode": "auto", "modeLabel": "Automático", "speed": 100, "targetTemp": 54, "tempLimit": 70, "vibLimit": 1.0, "cycleTime": 8 },
+      "reasons": ["Sem comunicação. O cadastro inicial simula a última comunicação 25 minutos antes da inicialização; verificar gateway/sensor."],
+      "alerts": [
+        { "kind": "communication_lost", "level": "offline", "initialSimulatedSilenceMinutes": 25 }
+      ]
+    },
+    {
+      "id": "CVY-001",
+      "name": "Esteira 1",
+      "type": "conveyor",
+      "typeLabel": "Esteira transportadora",
+      "status": "online",
+      "statusLabel": "Online",
+      "commLost": false,
+      "telemetryQuality": "simulated_reference",
+      "telemetry": { "temp": 41, "vib": 0.2, "usage": 83 },
+      "params": { "mode": "auto", "modeLabel": "Automático", "speed": 100, "targetTemp": 41, "tempLimit": 60, "vibLimit": 0.6, "cycleTime": 6 },
+      "reasons": [],
+      "alerts": []
+    },
+    {
+      "id": "CVY-002",
+      "name": "Esteira 2",
+      "type": "conveyor",
+      "typeLabel": "Esteira transportadora",
+      "status": "online",
+      "statusLabel": "Online",
+      "commLost": false,
+      "telemetryQuality": "simulated_reference",
+      "telemetry": { "temp": 39, "vib": 0.2, "usage": 79 },
+      "params": { "mode": "auto", "modeLabel": "Automático", "speed": 100, "targetTemp": 39, "tempLimit": 60, "vibLimit": 0.6, "cycleTime": 6 },
+      "reasons": [],
+      "alerts": []
+    },
+    {
+      "id": "CVY-003",
+      "name": "Esteira 3",
+      "type": "conveyor",
+      "typeLabel": "Esteira transportadora",
+      "status": "alert",
+      "statusLabel": "Alerta",
+      "commLost": false,
+      "telemetryQuality": "simulated_reference",
+      "telemetry": { "temp": 58, "vib": 0.7, "usage": 91 },
+      "params": { "mode": "auto", "modeLabel": "Automático", "speed": 100, "targetTemp": 58, "tempLimit": 60, "vibLimit": 0.6, "cycleTime": 5 },
+      "reasons": ["Vibração elevada de 0,7 mm/s; limite de 0,6 mm/s."],
+      "alerts": [
+        { "metric": "vib", "level": "warn", "value": 0.7, "limit": 0.6, "unit": "mm/s" }
+      ]
+    },
+    {
+      "id": "FKL-001",
+      "name": "Empilhadeira 1",
+      "type": "forklift",
+      "typeLabel": "Empilhadeira elétrica",
+      "status": "online",
+      "statusLabel": "Online",
+      "commLost": false,
+      "telemetryQuality": "simulated_reference",
+      "telemetry": { "temp": 48, "vib": 0.5, "usage": 55 },
+      "params": { "mode": "auto", "modeLabel": "Automático", "speed": 100, "targetTemp": 48, "tempLimit": 65, "vibLimit": 1.2, "cycleTime": 120 },
+      "reasons": [],
+      "alerts": []
+    },
+    {
+      "id": "FKL-002",
+      "name": "Empilhadeira 2",
+      "type": "forklift",
+      "typeLabel": "Empilhadeira elétrica",
+      "status": "online",
+      "statusLabel": "Online",
+      "commLost": false,
+      "telemetryQuality": "simulated_reference",
+      "telemetry": { "temp": 51, "vib": 0.6, "usage": 62 },
+      "params": { "mode": "auto", "modeLabel": "Automático", "speed": 100, "targetTemp": 51, "tempLimit": 65, "vibLimit": 1.2, "cycleTime": 110 },
+      "reasons": [],
+      "alerts": []
+    },
+    {
+      "id": "FKL-003",
+      "name": "Empilhadeira 3",
+      "type": "forklift",
+      "typeLabel": "Empilhadeira elétrica",
+      "status": "alert",
+      "statusLabel": "Alerta",
+      "commLost": false,
+      "telemetryQuality": "simulated_reference",
+      "telemetry": { "temp": 66, "vib": 1.1, "usage": 78 },
+      "params": { "mode": "auto", "modeLabel": "Automático", "speed": 100, "targetTemp": 66, "tempLimit": 65, "vibLimit": 1.2, "cycleTime": 140 },
+      "reasons": ["Temperatura elevada de 66 °C; limite de 65 °C."],
+      "alerts": [
+        { "metric": "temp", "level": "warn", "value": 66, "limit": 65, "unit": "°C" }
+      ]
+    },
+    {
+      "id": "INJ-001",
+      "name": "Injetora 1",
+      "type": "injector",
+      "typeLabel": "Injetora de plástico",
+      "status": "online",
+      "statusLabel": "Online",
+      "commLost": false,
+      "telemetryQuality": "simulated_reference",
+      "telemetry": { "temp": 185, "vib": 0.9, "usage": 94 },
+      "params": { "mode": "auto", "modeLabel": "Automático", "speed": 100, "targetTemp": 185, "tempLimit": 195, "vibLimit": 1.5, "cycleTime": 24 },
+      "reasons": [],
+      "alerts": []
+    },
+    {
+      "id": "INJ-002",
+      "name": "Injetora 2",
+      "type": "injector",
+      "typeLabel": "Injetora de plástico",
+      "status": "alert",
+      "statusLabel": "Alerta",
+      "commLost": false,
+      "telemetryQuality": "simulated_reference",
+      "telemetry": { "temp": 210, "vib": 1.3, "usage": 88 },
+      "params": { "mode": "auto", "modeLabel": "Automático", "speed": 100, "targetTemp": 210, "tempLimit": 195, "vibLimit": 1.5, "cycleTime": 26 },
+      "reasons": ["Temperatura crítica de 210 °C; limite de 195 °C."],
+      "alerts": [
+        { "metric": "temp", "level": "critical", "value": 210, "limit": 195, "unit": "°C" }
+      ]
+    },
+    {
+      "id": "PRE-001",
+      "name": "Prensa Hidráulica",
+      "type": "press",
+      "typeLabel": "Prensa hidráulica",
+      "status": "online",
+      "statusLabel": "Online",
+      "commLost": false,
+      "telemetryQuality": "simulated_reference",
+      "telemetry": { "temp": 62, "vib": 2.1, "usage": 45 },
+      "params": { "mode": "auto", "modeLabel": "Automático", "speed": 100, "targetTemp": 62, "tempLimit": 80, "vibLimit": 2.5, "cycleTime": 12 },
+      "reasons": [],
+      "alerts": []
+    },
+    {
+      "id": "WLD-001",
+      "name": "Solda Robótica",
+      "type": "welder",
+      "typeLabel": "Célula de solda robotizada",
+      "status": "online",
+      "statusLabel": "Online",
+      "commLost": false,
+      "telemetryQuality": "simulated_reference",
+      "telemetry": { "temp": 320, "vib": 0.4, "usage": 37 },
+      "params": { "mode": "auto", "modeLabel": "Automático", "speed": 100, "targetTemp": 320, "tempLimit": 380, "vibLimit": 1.0, "cycleTime": 18 },
+      "reasons": [],
+      "alerts": []
+    }
+  ]
+}
