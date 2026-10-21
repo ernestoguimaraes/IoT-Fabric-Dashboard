@@ -9,7 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "server": "node --env-file-if-exists=.env server/index.js",
-    "dev:all": "concurrently -n web,api -c blue,green \"npm:dev\" \"npm:server\"",
+    "dev:all": "concurrently --kill-others -n web,api -c blue,green \"npm:dev\" \"npm:server\"",
     "simulate:devices": "node --env-file-if-exists=.env server/deviceSimulator.js"
   },
   "dependencies": {

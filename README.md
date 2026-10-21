@@ -54,6 +54,23 @@ npm run dev:all      # SPA + proxy /api (necessário para o chat Foundry e Fabri
 npm run build        # gera dist/ — `npm run server` também entrega a SPA buildada
 ```
 
+**Iniciar e parar pelo PowerShell (Windows)**
+
+Na raiz do projeto, após `npm install`:
+
+```powershell
+.\dev.ps1 start      # abre um console com logs ao vivo e verifica SPA/API
+.\dev.ps1 status     # lista os processos gerenciados pelo script
+.\dev.ps1 stop       # encerra o ambiente iniciado pelo script
+.\dev.ps1 restart    # reinicia para carregar alterações no .env
+.\dev.ps1 start -StartupTimeoutSeconds 240  # amplia o prazo em ambientes lentos (padrão: 120 s)
+Get-Content .\.dev-processes\stdout.log -Tail 40 -Wait
+```
+
+O script inicia o **Vite** e o **proxy Express** necessários ao chat Foundry e à integração Fabric; não inicia o simulador de dispositivos. Uma janela de console **IoT Dashboard - Vite e API** exibe os logs dos dois serviços em tempo real, incluindo erros, e mantém o PowerShell original livre. A mesma saída é salva em `.dev-processes\stdout.log`; logs e identificadores de processos ficam em `.dev-processes/`, ignorado pelo Git. `stop` pode ser executado em outro PowerShell e encerra somente os processos gerenciados, incluindo a janela de logs, conferindo PID e data de criação; não encerra uma execução manual anterior de `npm run dev:all`. O comando `dev:all` também encerra o outro serviço se um deles terminar. Na execução manual em primeiro plano, use **Ctrl+C**.
+
+Se a política local bloquear scripts, use `powershell -NoProfile -ExecutionPolicy Bypass -File .\dev.ps1 start` (ou `stop`, `status`, `restart`), sem alterar a política permanente. O script aguarda até 120 segundos pela inicialização, com prazo configurável por `-StartupTimeoutSeconds` (1 a 600 segundos), e repete as verificações HTTP enquanto os serviços iniciam. O erro de timeout informa qual serviço ou resposta HTTP ainda estava pendente. Erros de inicialização são reportados e os processos iniciados são encerrados; consulte `.dev-processes\stdout.log`.
+
 **Funcionalidades**
 
 1. **Ajuste de parâmetros** — no painel da máquina, **⚙️ Ajustar parâmetros** abre uma janela com os setpoints do tipo de máquina: modo (Automático/Manual/Pausado/Desligado), velocidade, temperatura alvo, limites de alarme de temperatura e vibração e tempo de ciclo. Faixas e rótulos variam por tipo, a validação acontece em tempo real, **Restaurar padrão** volta aos valores de fábrica, **Cancelar**/Esc desfaz e **Aplicar** (ou Ctrl+Enter) publica.
