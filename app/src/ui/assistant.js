@@ -14,8 +14,6 @@ export function mountAssistant(agent) {
   let busy = false;
 
   setText($('#as-sub'), isMock ? `${agent.label} · demo` : agent.label);
-  $('#as-ctx').style.display = isMock ? '' : 'none';
-  chips.style.display = isMock ? '' : 'none';
   if (!isMock) input.placeholder = 'Envie uma mensagem ao agente Foundry…';
 
   const greet = () => {
@@ -42,9 +40,7 @@ export function mountAssistant(agent) {
     addMsg('user', text);
     const typing = addMsg('bot typing', isMock ? 'Analisando telemetria' : 'Aguardando Foundry…');
     try {
-      const res = isMock
-        ? await agent.send(text, buildContext(store.state))
-        : await agent.send(text);
+      const res = await agent.send(text, buildContext(store.state));
       typing.remove();
       addMsg('bot', res.text, res.source);
     } catch (e) {
@@ -62,7 +58,7 @@ export function mountAssistant(agent) {
     box.classList.add('open');
     $('#assistant-fab').style.display = 'none';
     if (!msgs.children.length) greet();
-    if (isMock && prefill) ask(prefill); else input.focus();
+    if (prefill) ask(prefill); else input.focus();
   }
   function close() {
     box.classList.remove('open');
@@ -78,7 +74,7 @@ export function mountAssistant(agent) {
   });
 
   // contexto + sugestões reativos à seleção e ao estado das máquinas
-  if (isMock) store.subscribe(['selection', 'machines'], (s) => {
+  store.subscribe(['selection', 'machines'], (s) => {
     const m = s.selectedId ? s.byId[s.selectedId] : null;
     $('#as-ctx').innerHTML = m
       ? `Contexto: <b>${esc(m.id)} · ${esc(m.name)}</b> (${m.status === 'online' ? 'online' : m.status === 'alert' ? 'em alerta' : 'offline'})`

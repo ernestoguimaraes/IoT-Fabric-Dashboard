@@ -11,7 +11,6 @@ export function mountInfoPanel({ onAsk, agentMode }) {
   $('#panel-close').addEventListener('click', () => selectMachine(null));
   $('#btn-params').addEventListener('click', () => store.state.selectedId && openEditor(store.state.selectedId));
   $('#btn-ask').addEventListener('click', () => {
-    if (agentMode === 'foundry') { onAsk(); return; }
     const m = store.state.byId[store.state.selectedId];
     if (!m) return;
     onAsk(m.status === 'online' ? `Como funciona a ${m.id}?` : `Por que a ${m.id} está em ${STATUS_LABEL[m.status].toLowerCase()}?`);

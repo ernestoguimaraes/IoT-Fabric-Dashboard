@@ -40,7 +40,7 @@ mock.module('../app/src/ui/dom.js', {
   },
 });
 
-const { chat } = await import('../server/foundry.js');
+const { chat, withContext } = await import('../server/foundry.js');
 const { createFoundryAgent } = await import('../app/src/integration/agent/foundry.js');
 const { createAgent } = await import('../app/src/integration/agent/index.js');
 const { answer } = await import('../app/src/integration/agent/mock.js');
@@ -72,10 +72,10 @@ test('Foundry forwards only the exact user message and preserves remote conversa
       : { id: 'resp_test', status: 'completed', output_text: reply }));
   });
   const message = '  teste\n';
-  const result = await chat({ message, context });
+  const result = await chat({ message });
   assert.deepEqual(bodies, [{}, { conversation: 'conv_test', input: message }]);
   assert.equal(result.text, reply);
-  await chat({ message: 'segunda mensagem', context, conversationId: result.conversationId });
+  await chat({ message: 'segunda mensagem', conversationId: result.conversationId });
   assert.deepEqual(bodies[2], { conversation: 'conv_test', input: 'segunda mensagem' });
 });
 
@@ -92,7 +92,7 @@ test('classic Foundry uses no additional instructions and preserves citations', 
       { role: 'assistant', run_id: 'run_test', content: [{ type: 'text', text: { value: 'Resposta 【1:fonte】' } }] },
     ] }));
   });
-  const result = await chat({ message: 'teste', context });
+  const result = await chat({ message: 'teste' });
   assert.deepEqual(requests, [{ assistant_id: 'asst_test', thread: { messages: [{ role: 'user', content: 'teste' }] } }]);
   assert.equal(result.text, 'Resposta 【1:fonte】');
 });
@@ -110,7 +110,7 @@ test('Foundry rejects failed, incomplete and empty responses instead of substitu
   }
 });
 
-test('debug logs the exact outgoing message without local context or credentials', async () => {
+test('debug logs the exact outgoing payload (with plant context) without credentials', async () => {
   process.env.FOUNDRY_DEBUG = 'true';
   const logs = [];
   const requests = [];
@@ -123,9 +123,8 @@ test('debug logs the exact outgoing message without local context or credentials
   const index = logs.findIndex(([label]) => label.includes('Payload enviado ao Foundry'));
   assert.ok(index >= 0);
   assert.equal(logs[index + 1][0], requests[0]);
-  assert.deepEqual(JSON.parse(requests[0]), { conversation: 'conv_test', input: 'teste' });
+  assert.deepEqual(JSON.parse(requests[0]), { conversation: 'conv_test', input: withContext('teste', context) });
   assert.ok(!JSON.stringify(logs).includes('test-token'));
-  assert.ok(!JSON.stringify(logs).includes('summary'));
 });
 
 test('classic Foundry rejects old replies from a different run', async () => {
@@ -137,22 +136,35 @@ test('classic Foundry rejects old replies from a different run', async () => {
   await assert.rejects(chat({ message: 'teste' }), /não retornou texto/);
 });
 
-test('adapter excludes context, reuses conversation and resets it', async () => {
+test('server appends live plant context to the user message', () => {
+  const ctx = { summary: { online: 1, alert: 1, offline: 0, total: 2 },
+    alerts: [{ id: 'INJ-002', name: 'Injetora', status: 'alert', reasons: ['Temperatura alta'] }], selected: null };
+  const out = withContext('por quê?', ctx);
+  assert.match(out, /1 em alerta/);
+  assert.match(out, /INJ-002 · Injetora: alert — Temperatura alta/);
+  assert.ok(out.endsWith('Pergunta do usuário:\npor quê?'));
+  assert.equal(withContext('oi'), 'oi');
+});
+
+test('adapter sends context, logs calls when debug, reuses conversation and resets it', async () => {
   const requests = [];
   mock.method(globalThis, 'fetch', async (_url, options) => {
     requests.push(JSON.parse(options.body));
     return new Response(JSON.stringify({ text: 'Resposta', conversationId: 'conv_test' }));
   });
-  const agent = createFoundryAgent();
+  const logs = [];
+  mock.method(console, 'log', (...args) => logs.push(args));
+  const agent = createFoundryAgent({ debug: true });
   await agent.send('  teste  ', context);
   await agent.send('segunda');
   agent.reset();
   await agent.send('nova');
-  assert.deepEqual(requests, [
-    { message: '  teste  ', conversationId: null },
+  assert.deepEqual(requests.map((r) => JSON.parse(JSON.stringify(r))), [
+    { message: '  teste  ', conversationId: null, context },
     { message: 'segunda', conversationId: 'conv_test' },
     { message: 'nova', conversationId: null },
   ]);
+  assert.ok(logs.some(([tag, label]) => tag === '[foundry]' && /POST \/api\/agent\/chat/.test(label)));
 });
 
 test('Foundry adapter surfaces failures and empty replies without local substitution', async () => {
@@ -164,20 +176,17 @@ test('Foundry adapter surfaces failures and empty replies without local substitu
   assert.throws(() => createAgent('invalid'), /Modo de agente inválido/);
 });
 
-test('Foundry UI has no local greeting, suggestions, context or automatic machine prompt', async () => {
+test('Foundry UI has no local greeting and sends live plant context with each message', async () => {
   const calls = [];
   const assistant = mountAssistant({ mode: 'foundry', label: 'Foundry', reset() {}, send: async (...args) => {
     calls.push(args);
     return { text: 'Resposta remota' };
   } });
-  assistant.open('Como funciona a INJ-002?');
+  assistant.open();
   assert.equal(getNode('#as-msgs').children.length, 0);
-  assert.equal(getNode('#as-ctx').style.display, 'none');
-  assert.equal(getNode('#as-chips').style.display, 'none');
-  assert.equal(subscriptions.length, 0);
   await assistant.ask('  mensagem digitada  ');
-  assert.deepEqual(calls, [['  mensagem digitada  ']]);
-  assert.equal(contextReads, 0);
+  assert.deepEqual(calls, [['  mensagem digitada  ', context]]);
+  assert.equal(contextReads, 1);
   assert.equal(getNode('#as-msgs').children.at(-1).innerHTML, 'Resposta remota');
   getNode('#as-clear').listeners.click();
   assert.equal(getNode('#as-msgs').children.length, 0);
@@ -194,7 +203,7 @@ test('mock UI retains greeting, context, suggestions and automatic machine promp
   assert.equal(subscriptions.length, 1);
   subscriptions[0][1]({ selectedId: null, machines: [] });
   assert.equal(getNode('#as-chips').children.length, 3);
-  assert.equal(getNode('#as-ctx').style.display, '');
+  assert.notEqual(getNode('#as-ctx').style.display, 'none');
   assistant.open('Resumo da planta');
   await Promise.resolve();
   assert.deepEqual(calls, [['Resumo da planta', context]]);

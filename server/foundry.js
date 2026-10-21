@@ -113,7 +113,25 @@ async function chatWithCurrentAgent(c, { message, conversationId }) {
   };
 }
 
-export async function chat({ message, conversationId, threadId }) {
+// Anexa o estado ao vivo da planta (alertas, máquina selecionada) à pergunta do usuário.
+export function withContext(message, ctx) {
+  if (!ctx) return message;
+  const s = ctx.summary || {};
+  const lines = ['[Contexto ao vivo da planta — use para responder; não repita ao usuário]'];
+  if (ctx.plant) lines.push(`Planta: ${ctx.plant}`);
+  lines.push(`Resumo: ${s.online ?? 0} online, ${s.alert ?? 0} em alerta, ${s.offline ?? 0} offline (de ${s.total ?? 0}).`);
+  for (const a of (ctx.alerts || []).slice(0, 20)) {
+    lines.push(`- ${a.id} · ${a.name}: ${a.status}${a.reasons?.length ? ` — ${a.reasons.join('; ')}` : ''}`);
+  }
+  if (ctx.selected) {
+    const { defaults, ...sel } = ctx.selected;
+    lines.push(`Máquina selecionada: ${JSON.stringify(sel)}`);
+  }
+  return `${lines.join('\n')}\n\nPergunta do usuário:\n${message}`;
+}
+
+export async function chat({ message: userMessage, conversationId, threadId, context }) {
+  const message = withContext(userMessage, context);
   const c = cfg();
   if (!foundryConfigured()) {
     throw Object.assign(new Error('Agente Foundry não configurado (FOUNDRY_PROJECT_ENDPOINT / FOUNDRY_AGENT_NAME).'), { status: 503 });
@@ -124,7 +142,7 @@ export async function chat({ message, conversationId, threadId }) {
   const startedAt = Date.now();
   if (c.debug) {
     logDebug(`Requisição recebida · agente=${classic ? 'clássico' : c.agentName} · conversa=${activeConversationId?.slice(-6) || 'nova'}`);
-    logDebug('Mensagem do usuário:', message);
+    logDebug(`Mensagem do usuário${context ? ' (com contexto da planta)' : ''}:`, message);
   }
 
   try {

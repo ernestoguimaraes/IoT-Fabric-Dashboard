@@ -151,13 +151,14 @@ app.post('/api/commands', send(async ({ machineId, command, ts, source }) => {
 }));
 
 // ─── Agente Foundry ──────────────────────────────────────────────────────────
-app.post('/api/agent/chat', send(async ({ message, conversationId, threadId }) => {
+app.post('/api/agent/chat', send(async ({ message, conversationId, threadId, context }) => {
   if (typeof message !== 'string' || !message.trim()) throw bad('message obrigatório');
   if (message.length > 4000) throw bad('mensagem muito longa');
   return chat({
     message,
     conversationId: typeof conversationId === 'string' ? conversationId : undefined,
     threadId: typeof threadId === 'string' ? threadId : undefined,
+    context: context && typeof context === 'object' ? context : undefined,
   });
 }));
 
