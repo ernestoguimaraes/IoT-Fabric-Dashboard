@@ -1,235 +1,163 @@
-# 🏭 IoT Factory Dashboard — 3D Monitoramento de Chão de Fábrica
+# AI Fabric — Dashboard IoT de chão de fábrica
 
-Dashboard 3D interativo para monitoramento IoT de máquinas em um chão de fábrica, construído com Three.js.
+SPA de monitoramento de 16 máquinas industriais com cena 3D interativa, telemetria reativa e integrações opcionais com Microsoft Fabric Real-Time Intelligence (RTI) e Microsoft Foundry. A interface é feita em JavaScript modular, sem framework, com Vite e Three.js.
 
-## 🚀 Como usar
+> **Demonstração:** os dados iniciais, a identificação do operador e as informações de sessão são fictícios. A interface não implementa autenticação. Use a integração Fabric para conectar telemetria real.
 
-Abra o arquivo `index.html` em qualquer navegador moderno:
+## Requisitos
 
-```bash
-# Windows
-start index.html
+- Node.js 24 ou superior e npm.
+- Para integrações reais: recursos e permissões configurados no Microsoft Fabric e/ou Microsoft Foundry, conforme necessário.
 
-# Ou simplesmente dê duplo clique no arquivo
-```
+## Executar localmente
 
-**Navegação:** Arraste para orbitar, scroll para zoom.
-
-### 🛡️ Proposta visual — Escolta armada (`index-escolta-armada.html`)
-
-Abra [index-escolta-armada.html](index-escolta-armada.html) no navegador para visualizar a proposta de monitoramento de veículos e equipes em deslocamento. A página preserva a identidade do projeto: fundo escuro, azul GPS, cartões de indicadores, painéis laterais e barra de status. As versões industriais permanecem inalteradas.
-
-- **Visão central:** mapa vetorial em perspectiva, percurso ilustrativo, veículos selecionáveis e progresso da jornada.
-- **Animação:** comboio com dois veículos de escolta e um caminhão percorre a rota em loop, com faróis, rastro luminoso, fluxo de luz e pulso de localização no veículo selecionado. As posições animadas são ilustrativas e independentes dos indicadores fixos.
-- **Painel esquerdo:** operação, origem/destino, veículos e check-in das equipes.
-- **Painel direito:** telemetria do veículo selecionado, alerta de bateria e histórico.
-- **Interações:** selecione veículos na lista ou no mapa; simule a ciência do alerta para atualizar o contador e o histórico sem remover a condição de bateria baixa.
-- **Responsivo:** os painéis são empilhados em telas menores; seleção e botões também funcionam pelo teclado.
-- **Controle de movimento:** botão para pausar/reproduzir; apontar para um marcador ou focá-lo pelo teclado pausa o movimento para facilitar a seleção. A animação inicia pausada quando o sistema solicita movimento reduzido e é suspensa enquanto a aba está oculta.
-
-Todos os indicadores são fictícios e estáticos, com referência em 28/09/2026 às 14:40 BRT; apenas a cena do mapa é animada. O mapa é esquemático, sem escala, coordenadas ou posicionamento real. Não há autenticação, comunicação com equipes, envio de comandos ou integração de telemetria. A ciência do alerta existe apenas na página atual; recarregar reinicia a demonstração. O protótipo usa HTML, CSS e SVG locais, sem dependências externas.
-
-### ✨ Versão 2 — Cena 3D Cinematic (`index-v2.html`)
-
-Mesma moldura de monitoramento, mesmos dados mock e mesmo painel/comandos; muda apenas a cena 3D:
-
-- **Render cinematográfico:** reflexos de ambiente (PMREM), bloom, contorno azul no ativo selecionado, névoa e sombras suaves.
-- **Galpão detalhado:** piso de concreto texturizado, faixas de circulação, zonas de segurança zebradas, paredes de vidro, luminárias suspensas com feixes de luz, painel LED "Grupo GPS" e poeira no ar.
-- **Máquinas animadas:** CNC com janela e spindle girando, robôs de 6 eixos articulados (ROB-003 caído/offline), esteiras com correia e caixas em movimento, empilhadeiras com rodas, garfo e giroflex, injetoras com cilindros aquecidos (INJ-002 pulsando), prensa com curso do martelo e cortina de luz, célula de solda com faíscas e arco elétrico.
-- **Sinalização IoT:** torre de luz (andon) e tela IHM com gráfico ao vivo em cada máquina; feixe holográfico sobre ativos em alerta/offline.
-- **Câmera:** entrada cinematográfica e "modo vitrine" (órbita automática após 20 s sem interação).
-
-```bash
-start index-v2.html
-```
-
-### ⚡ Versão SPA — reativa, Fabric RTI e assistente Foundry (`app/`)
-
-Aplicação de página única (Vite + JavaScript modular, sem framework) construída sobre a cena da v2, com identidade visual **AI Fabric** (marca própria e paleta teal/violeta, sem logo ou referências ao Grupo GPS). Por padrão, telemetria e assistente são mock; `VITE_AGENT_MODE=foundry` ativa uma conversa direta com o **Microsoft Foundry**, sem fallback local.
+Na raiz do projeto:
 
 ```bash
 npm install
-npm run dev          # SPA em http://localhost:5173 (telemetria e assistente mock por padrão)
-npm run dev:all      # SPA + proxy /api (necessário para o chat Foundry e Fabric)
-npm run build        # gera dist/ — `npm run server` também entrega a SPA buildada
+npm run dev
 ```
 
-**Iniciar e parar pelo PowerShell (Windows)**
+Abra <http://localhost:5173>. Por padrão, a telemetria e o assistente usam implementações mock locais; esse modo não exige o proxy.
 
-Na raiz do projeto, após `npm install`:
+Para iniciar a SPA e o proxy Express juntos:
+
+```bash
+npm run dev:all
+```
+
+No Windows, também é possível gerenciar os dois processos pelo PowerShell:
 
 ```powershell
-.\dev.ps1 start      # abre um console com logs ao vivo e verifica SPA/API
-.\dev.ps1 status     # lista os processos gerenciados pelo script
-.\dev.ps1 stop       # encerra o ambiente iniciado pelo script
-.\dev.ps1 restart    # reinicia para carregar alterações no .env
-.\dev.ps1 start -StartupTimeoutSeconds 240  # amplia o prazo em ambientes lentos (padrão: 120 s)
-Get-Content .\.dev-processes\stdout.log -Tail 40 -Wait
+.\dev.ps1 start
+.\dev.ps1 status
+.\dev.ps1 stop
+.\dev.ps1 restart
 ```
 
-O script inicia o **Vite** e o **proxy Express** necessários ao chat Foundry e à integração Fabric; não inicia o simulador de dispositivos. Uma janela de console **IoT Dashboard - Vite e API** exibe os logs dos dois serviços em tempo real, incluindo erros, e mantém o PowerShell original livre. A mesma saída é salva em `.dev-processes\stdout.log`; logs e identificadores de processos ficam em `.dev-processes/`, ignorado pelo Git. `stop` pode ser executado em outro PowerShell e encerra somente os processos gerenciados, incluindo a janela de logs, conferindo PID e data de criação; não encerra uma execução manual anterior de `npm run dev:all`. O comando `dev:all` também encerra o outro serviço se um deles terminar. Na execução manual em primeiro plano, use **Ctrl+C**.
+O script abre um console com os logs ao vivo e grava uma cópia em `.dev-processes\stdout.log`. Se a política local bloquear scripts, execute `powershell -NoProfile -ExecutionPolicy Bypass -File .\dev.ps1 start`. Para interromper a execução manual de `npm run dev:all`, use `Ctrl+C`.
 
-Se a política local bloquear scripts, use `powershell -NoProfile -ExecutionPolicy Bypass -File .\dev.ps1 start` (ou `stop`, `status`, `restart`), sem alterar a política permanente. O script aguarda até 120 segundos pela inicialização, com prazo configurável por `-StartupTimeoutSeconds` (1 a 600 segundos), e repete as verificações HTTP enquanto os serviços iniciam. O erro de timeout informa qual serviço ou resposta HTTP ainda estava pendente. Erros de inicialização são reportados e os processos iniciados são encerrados; consulte `.dev-processes\stdout.log`.
+## O que a SPA oferece
 
-**Funcionalidades**
+- **Cena 3D:** galpão industrial, máquinas animadas, câmera orbital, seleção de ativos e modo vitrine.
+- **Monitoramento reativo:** lista de máquinas, estados online/alerta/offline, métricas, alertas, KPIs, eventos e sincronização.
+- **Painel do ativo:** temperatura, vibração, utilização, limites e setpoints.
+- **Ajuste de parâmetros:** pré-visualização imediata na interface, validação por tipo de máquina, restauração dos valores padrão e aplicação ou cancelamento.
+- **Comandos:** `EMERGENCY_STOP`, `PAUSE`, `RESUME`, `CALIBRATE`, `SPEED_UP`, `SLOW_DOWN` e `CYCLE_START`. A parada de emergência pede confirmação.
+- **Assistente IoT:** no modo mock, responde com uma base local sobre máquinas, estado e manutenção; no modo Foundry, conversa com o agente configurado e recebe o contexto ao vivo da planta enviado pelo proxy.
+- **Telemetria:** simulador local no navegador ou leitura do Fabric Eventhouse via proxy. Com Fabric configurado, parâmetros e comandos são publicados no Eventstream.
 
-1. **Ajuste de parâmetros** — no painel da máquina, **⚙️ Ajustar parâmetros** abre uma janela com os setpoints do tipo de máquina: modo (Automático/Manual/Pausado/Desligado), velocidade, temperatura alvo, limites de alarme de temperatura e vibração e tempo de ciclo. Faixas e rótulos variam por tipo, a validação acontece em tempo real, **Restaurar padrão** volta aos valores de fábrica, **Cancelar**/Esc desfaz e **Aplicar** (ou Ctrl+Enter) publica.
-2. **Interface reativa** — um store central (`app/src/store.js`) notifica os componentes por tópico. Enquanto você edita, a **pré-visualização** já recalcula status, motivos, alertas, HUD, KPIs, lista de ativos, andon e IHM 3D e velocidade das animações. Depois de aplicar, o dispositivo recebe os setpoints e a telemetria **converge** para o novo ponto de equilíbrio (ex.: `SLOW_DOWN` na INJ-002 reduz a temperatura até sair do alerta). Os comandos (`PAUSE`, `EMERGENCY_STOP`, `RESUME`…) alteram o estado de fato.
-3. **Integração Fabric Real-Time Intelligence** — camada de adaptadores em `app/src/integration/telemetry/` (`mock` | `fabric`) com o mesmo contrato. O painel **Sincronização Fabric RTI** mostra a fonte, o estado, os eventos recebidos/publicados, os dispositivos sincronizados e a latência.
-4. **Assistente virtual** — em `mock`, preserva a saudação, contexto da planta, sugestões e perguntas automáticas sobre máquinas. Em `foundry`, abre uma conversa vazia, sem saudação ou sugestões locais, e envia somente o texto digitado, sem anexar telemetria, instruções ou dados simulados. O botão **Perguntar** apenas abre o chat nesse modo. As respostas vêm exclusivamente do **Microsoft Foundry**; falhas e respostas sem texto são exibidas como erros, sem substituição por mock.
+Os valores de temperatura, vibração, utilização, KPIs e estado inicial são demonstrações; não representam uma instalação ou processo industrial real.
 
-**Arquitetura**
+## Modos de execução
 
-```mermaid
-flowchart LR
-  subgraph Browser[SPA · Vite]
-    UI[Componentes UI] <--> Store[(Store reativo)]
-    Scene[Cena 3D Three.js] --> Store
-    Store <--> TA[Adaptador telemetria<br/>mock · fabric]
-    UI <--> AA[Adaptador agente<br/>mock · foundry]
-  end
-  subgraph Proxy[server/ · Express]
-    SSE[/api/telemetry/stream SSE/]
-    W[/api/params · /api/commands/]
-    C[/api/agent/chat/]
-  end
-  subgraph Fabric[Microsoft Fabric RTI]
-    ES[Eventstream<br/>custom endpoint] --> EH[(Eventhouse · KQL<br/>MachineTelemetry / MachineParams / MachineCommands)]
-  end
-  Dev[Dispositivos IoT<br/>npm run simulate:devices] --> ES
-  EH -. setpoints .-> Dev
-  TA --> SSE --> EH
-  TA --> W --> ES
-  AA --> C --> F[Azure AI Foundry<br/>Agent Service]
-```
-
-As credenciais ficam **somente no proxy**: SAS do Eventstream e Entra ID via `DefaultAzureCredential` (`az login`, managed identity…) para Eventhouse e Foundry.
-
-**Configuração (`.env`, a partir de `.env.example`)**
-
-| Variável | Uso |
+| Configuração | Comportamento |
 |---|---|
-| `VITE_TELEMETRY_MODE` | `mock` (padrão) ou `fabric` |
-| `VITE_AGENT_MODE` | `mock` (padrão, assistente local) ou `foundry` (conversa direta com o agente, sem contexto local ou fallback) |
-| `FABRIC_EVENTSTREAM_CONNECTION_STRING` / `FABRIC_EVENTSTREAM_NAME` | Custom endpoint do Eventstream (protocolo Event Hubs) |
-| `FABRIC_KUSTO_URI` / `FABRIC_KUSTO_DATABASE` | Query URI e banco KQL do Eventhouse |
-| `FABRIC_TELEMETRY_TABLE` / `FABRIC_PARAMS_TABLE` / `FABRIC_POLL_MS` | Tabelas e intervalo de leitura |
-| `FABRIC_LOOPBACK=true` | Sem Fabric: o proxy emula Eventstream+Eventhouse em memória (testa o modo `fabric` de ponta a ponta) |
-| `FOUNDRY_PROJECT_ENDPOINT` / `FOUNDRY_AGENT_NAME` | Endpoint do projeto (`https://<recurso>.services.ai.azure.com/api/projects/<projeto>`) e nome do agente criado na nova UI do Foundry |
-| `FOUNDRY_AGENT_ID` | Alias legado; IDs `asst_…` continuam usando o Agent Service clássico |
-| `FOUNDRY_API_VERSION` | Versão da API do Foundry (padrão `v1`) |
-| `FOUNDRY_DEBUG` | `true` registra no console do proxy a mensagem do usuário, payload exato enviado, resposta e duração (`false` por padrão) |
+| `VITE_TELEMETRY_MODE=mock` | Simulação local no navegador; padrão. |
+| `VITE_TELEMETRY_MODE=fabric` | Recebe telemetria do proxy por Server-Sent Events (SSE), consultada no Eventhouse. |
+| `VITE_AGENT_MODE=mock` | Assistente local com base de conhecimento e contexto da planta; padrão. |
+| `VITE_AGENT_MODE=foundry` | Usa o agente Microsoft Foundry através do proxy; o estado da planta é anexado à pergunta. |
+| `FABRIC_LOOPBACK=true` | Emula a API de telemetria, parâmetros e comandos em memória para testar o adaptador `fabric` sem Fabric. |
 
-**Setup do Fabric RTI**
+`npm run dev` inicia apenas o Vite. Para os modos `fabric` e `foundry`, inicie também o proxy com `npm run dev:all` ou `npm run server`.
 
-1. Crie um **Eventhouse** e, no banco KQL, as tabelas:
-   ```kusto
-   .create table MachineTelemetry (eventType:string, machineId:string, ts:datetime, temp:real, vib:real, usage:int, mode:string, speed:int)
-   .create table MachineParams (eventType:string, machineId:string, ts:datetime, source:string, mode:string, speed:int, targetTemp:real, tempLimit:real, vibLimit:real, cycleTime:int)
-   .create table MachineCommands (eventType:string, machineId:string, ts:datetime, source:string, command:string)
-   ```
-2. Crie um **Eventstream** com uma fonte **Custom endpoint** e copie a connection string (Event Hub) para o `.env`.
-3. Adicione destinos Eventhouse roteando por `eventType` (filtro): `telemetry` → `MachineTelemetry`, `params` → `MachineParams`, `command` → `MachineCommands`.
-4. Rode `npm run simulate:devices`: os 16 dispositivos enviam telemetria ao Eventstream e aplicam os setpoints publicados pela SPA (lidos de `MachineParams`), fechando o ciclo SPA → Eventstream → Eventhouse → dispositivo → telemetria.
-5. Defina `VITE_TELEMETRY_MODE=fabric` e rode `npm run dev:all`. O proxy consulta `arg_max(ts, *) by machineId` e transmite por SSE. Máquinas sem leitura há mais de `FABRIC_STALE_SEC` (15 s) aparecem como **sem comunicação**.
+## Configuração
 
-**Setup do agente no Azure AI Foundry**
+O passo a passo curto do Eventstream, do Eventhouse e do agente Foundry, com o `.env` mínimo de cada um, está em [docs/setup-fabric-foundry.md](docs/setup-fabric-foundry.md).
 
-1. Na nova UI do Foundry, crie um agente de prompt (ex.: `gpt-5-mini`) no projeto e configure instruções como:
-   > Você é o assistente da plataforma AI Fabric. Responda às mensagens do usuário em português. Não invente leituras, comandos disponíveis ou ações executadas; utilize somente informações e ferramentas realmente disponíveis no agente.
-2. Opcional: anexe manuais das máquinas via **File search** como base de conhecimento.
-3. Conceda ao usuário/identidade do proxy o papel **Azure AI User** no projeto, preencha `FOUNDRY_PROJECT_ENDPOINT` e `FOUNDRY_AGENT_NAME` com o nome do agente criado na nova UI e defina `VITE_AGENT_MODE=foundry`.
+Copie `.env.example` para `.env` e preencha somente as configurações dos serviços que pretende usar. O arquivo `.env` não deve ser versionado. O Vite carrega as variáveis de front-end a partir da raiz do projeto; credenciais do Fabric e Foundry são usadas apenas pelo proxy.
 
-O proxy chama o endpoint de Responses do agente (`/agents/{nome}/endpoint/protocols/openai/responses`) e mantém o histórico em uma conversation. Envia somente a mensagem digitada e o ID da conversa, sem contexto da planta ou instruções adicionais; as instruções e ferramentas são as configuradas no próprio Foundry. Agentes clássicos com IDs `asst_…` continuam suportados pelo endpoint legado de threads/runs, também sem instruções locais adicionais. A resposta textual é preservada, incluindo citações. Ao migrar de uma conversa que já recebeu dados simulados, use **Nova conversa** para não reutilizar esse histórico no Foundry.
+| Variável | Finalidade |
+|---|---|
+| `VITE_TELEMETRY_MODE` | `mock` ou `fabric`. |
+| `VITE_AGENT_MODE` | `mock` ou `foundry`. |
+| `VITE_AGENT_DEBUG` | Força `true`/`false` para logs do agente no console do navegador; por padrão, os logs ficam ativos em desenvolvimento. |
+| `VITE_API_BASE` | Prefixo opcional da API; normalmente vazio, pois o Vite encaminha `/api` ao proxy. |
+| `API_PORT` | Porta do proxy Express; padrão `8787`. |
+| `FABRIC_EVENTSTREAM_CONNECTION_STRING` | Connection string do endpoint Event Hubs do Eventstream; usada para publicar telemetria, parâmetros e comandos. |
+| `FABRIC_EVENTSTREAM_NAME` | Nome do Event Hub, se não estiver incluído na connection string. |
+| `FABRIC_KUSTO_URI`, `FABRIC_KUSTO_DATABASE` | URI de consulta e banco KQL do Eventhouse. |
+| `FABRIC_KUSTO_SCOPE` | Escopo Entra ID do Eventhouse; padrão `https://kusto.kusto.windows.net/.default`. |
+| `FABRIC_TELEMETRY_TABLE`, `FABRIC_PARAMS_TABLE` | Tabelas KQL; padrão `MachineTelemetry` e `MachineParams`. |
+| `FABRIC_POLL_MS`, `FABRIC_STALE_SEC` | Intervalo de consulta e limite de telemetria considerada desatualizada. |
+| `FABRIC_LOOPBACK` | `true` ativa a emulação em memória do proxy, quando o Eventhouse não está configurado. |
+| `DEVICE_INTERVAL_MS` | Intervalo do simulador de dispositivos; padrão `2000` ms. |
+| `FOUNDRY_PROJECT_ENDPOINT`, `FOUNDRY_AGENT_NAME` | Endpoint do projeto Foundry e nome do agente. |
+| `FOUNDRY_AGENT_ID` | Compatibilidade com o Agent Service clássico; IDs `asst_...` usam o endpoint legado quando `FOUNDRY_AGENT_NAME` não está definido. |
+| `FOUNDRY_API_VERSION`, `FOUNDRY_SCOPE`, `FOUNDRY_TIMEOUT_MS` | Versão da API, escopo Entra ID e timeout do agente. |
+| `FOUNDRY_DEBUG` | `true` registra mensagens, payload e respostas do agente no console do proxy. Pode expor conteúdo de conversas nos logs. |
 
-Ative `FOUNDRY_DEBUG=true` no `.env` e reinicie o proxy para ver os blocos de requisição/resposta do agente no console. O bloco `Payload enviado ao Foundry` mostra o método, caminho e corpo JSON exato da requisição; `input` contém somente o texto digitado. Cabeçalhos de autenticação não são registrados. Esse modo registra o conteúdo das mensagens; use apenas em ambientes apropriados e desative após depurar.
+O proxy autentica no Fabric e no Foundry com `DefaultAzureCredential` (por exemplo, `az login` durante desenvolvimento ou managed identity em hospedagem). Não coloque credenciais em variáveis `VITE_*`, pois elas podem ser incluídas no bundle do navegador.
 
-Regressões do chat (Node 24): `node --experimental-test-module-mocks --test tests\agent.test.js`. Os testes isolam as chamadas de rede e verificam os modos Foundry e mock, sem acessar o Azure.
+## Fabric Real-Time Intelligence
 
-**Estrutura**
+### Eventhouse
 
+Crie um banco KQL e as tabelas usadas pela integração:
+
+```kusto
+.create table MachineTelemetry (eventType:string, machineId:string, ts:datetime, temp:real, vib:real, usage:int, mode:string, speed:int)
+.create table MachineParams (eventType:string, machineId:string, ts:datetime, source:string, mode:string, speed:int, targetTemp:real, tempLimit:real, vibLimit:real, cycleTime:int)
+.create table MachineCommands (eventType:string, machineId:string, ts:datetime, source:string, command:string)
 ```
-app/                     SPA (Vite root)
-  src/shared/            modelo de máquinas, regras de status e simulação (compartilhados com o servidor)
-  src/store.js, state.js store reativo + ações
-  src/scene/scene.js     cena 3D da v2, agora dirigida pelo estado
-  src/ui/                painel, modal de parâmetros, assistente, painéis laterais
-  src/integration/       adaptadores telemetry (mock|fabric) e agent (mock|foundry)
-server/                  proxy Express (Fabric RTI + Foundry) e simulador de dispositivos
+
+Configure `FABRIC_KUSTO_URI` e `FABRIC_KUSTO_DATABASE`. Conceda à identidade usada pelo proxy permissão para consultar o banco.
+
+### Eventstream e simulador
+
+1. Crie um Eventstream com uma fonte **Custom endpoint** usando o protocolo Event Hubs e configure `FABRIC_EVENTSTREAM_CONNECTION_STRING` (e, se necessário, `FABRIC_EVENTSTREAM_NAME`).
+2. Crie destinos no Eventhouse e roteie os eventos pelo campo `eventType`: `telemetry` para `MachineTelemetry`, `params` para `MachineParams` e `command` para `MachineCommands`.
+3. Conceda à identidade de desenvolvimento permissão para enviar eventos ao Eventstream e consultar o Eventhouse.
+4. Defina `VITE_TELEMETRY_MODE=fabric` e inicie `npm run dev:all`.
+5. Opcionalmente, execute `npm run simulate:devices` em outro terminal para enviar telemetria dos 16 dispositivos. O simulador lê os setpoints mais recentes da tabela `MachineParams` quando o Eventhouse está configurado.
+
+O proxy consulta a última leitura por máquina e a transmite à SPA via SSE. Leituras mais antigas que `FABRIC_STALE_SEC` (15 segundos por padrão), ou máquinas sem leitura, são mostradas como sem comunicação.
+
+Para testar o caminho do adaptador `fabric` sem recursos Fabric, defina `FABRIC_LOOPBACK=true` e `VITE_TELEMETRY_MODE=fabric`, depois inicie `npm run dev:all`. O loopback emula as operações em memória; não envia dados ao Fabric.
+
+## Microsoft Foundry
+
+1. Crie um agente de prompt em um projeto do Foundry e defina as instruções desejadas.
+2. Conceda à identidade do proxy o papel necessário para usar o projeto (por exemplo, **Azure AI User**).
+3. Configure `FOUNDRY_PROJECT_ENDPOINT` e `FOUNDRY_AGENT_NAME` no `.env`.
+4. Defina `VITE_AGENT_MODE=foundry` e inicie `npm run dev:all`.
+
+A SPA envia a mensagem, um snapshot da planta (contagens, alertas, ativos e máquina selecionada) e o ID da conversa ao proxy. O proxy acrescenta esse contexto à pergunta e chama o Foundry; as credenciais não são expostas ao navegador. Para iniciar uma conversa nova, use o botão **Nova conversa** no assistente. Evite `FOUNDRY_DEBUG=true` fora de ambientes apropriados: esse modo registra o conteúdo das mensagens e das respostas.
+
+## Build, produção e testes
+
+```bash
+npm run build
+npm run preview
 ```
 
-## 📊 Dados Mockados
+O build da SPA é gerado em `dist/`. Para servir a versão buildada com a API, configure o `.env` e execute `npm run server`; o Express serve `dist/` quando a pasta existe. O `npm run preview` do Vite serve apenas o front-end e não inicia a API.
 
-Todos os dados estão no array `MACHINES` no início do script (linha ~50 do `index.html`).
+Teste de regressão do assistente (Node 24):
 
-### Máquinas disponíveis
+```bash
+node --experimental-test-module-mocks --test tests\agent.test.js
+```
 
-| ID | Nome | Tipo | Status | Observação |
-|----|------|------|--------|------------|
-| CNC-001 | Torno CNC 1 | cnc | ✅ Online | |
-| CNC-002 | Torno CNC 2 | cnc | ✅ Online | |
-| CNC-003 | Fresa CNC 1 | cnc | ⚠️ Alerta | Temperatura elevada (89°C) |
-| ROB-001 | Braço Robô A | robot | ✅ Online | Gira continuamente |
-| ROB-002 | Braço Robô B | robot | ✅ Online | Gira continuamente |
-| ROB-003 | Braço Robô C | robot | ❌ Offline | |
-| CVY-001 | Esteira 1 | conveyor | ✅ Online | |
-| CVY-002 | Esteira 2 | conveyor | ✅ Online | |
-| CVY-003 | Esteira 3 | conveyor | ⚠️ Alerta | Vibração elevada |
-| FKL-001 | Empilhadeira 1 | forklift | ✅ Online | 🔄 Em movimento |
-| FKL-002 | Empilhadeira 2 | forklift | ✅ Online | 🔄 Em movimento |
-| FKL-003 | Empilhadeira 3 | forklift | ⚠️ Alerta | 🔄 Em movimento |
-| INJ-001 | Injetora 1 | injector | ✅ Online | |
-| INJ-002 | Injetora 2 | injector | ⚠️ Alerta | Temperatura crítica (210°C) |
-| PRE-001 | Prensa Hidráulica | press | ✅ Online | |
-| WLD-001 | Solda Robótica | welder | ✅ Online | |
+Os testes do agente isolam as chamadas de rede e não acessam o Azure.
 
-### Métricas por máquina
+## Estrutura do projeto
 
-Cada máquina possui:
-- **Temperatura** (°C) — simulada conforme o tipo
-- **Vibração** (mm/s) — indicador de desgaste
-- **Uso** (%) — percentual de utilização
-
-### Status
-
-- 🟢 **Online** — operando normalmente
-- 🟡 **Alerta** — parâmetro fora do ideal (ex: temperatura ou vibração alta)
-- 🔴 **Offline** — máquina desligada ou sem comunicação
-
-## 🎮 Funcionalidades
-
-### Moldura de monitoramento (mock)
-
-A animação 3D roda dentro de um container central, cercado pela interface de operação:
-
-- **Topbar** — logo do Grupo GPS, identificação da unidade/turno, relógio e o bloco do **operador autenticado** (nome, matrícula, perfil, badge "Autenticado", botão de encerrar sessão)
-- **Painel esquerdo** — dados da sessão (usuário, perfil de acesso, login, expiração, permissão de comando), passo a passo de como operar o painel, procedimento em caso de alerta e contatos do turno
-- **Painel direito** — alertas ativos, indicadores do turno (disponibilidade, OEE, produção) e checklist do operador
-- **Barra de status** — aviso de ambiente de demonstração, broker MQTT, gateways de borda, latência e última atualização
-
-> ⚠️ Todos os dados — inclusive o operador autenticado, login e sessão — são **mockados**. Não há autenticação real.
-
-### Interações
-
-1. **Clique em qualquer máquina** — abre painel com métricas em tempo real
-2. **Envio de comandos** — selecione um comando e clique "Enviar" para simular controle
-3. **Empilhadeiras animadas** — 3 veículos percorrendo trajetos predefinidos
-4. **Braços robóticos** — animação de rotação contínua
-5. **HUD** — contagem de máquinas por status no topo
-6. **Paredes de vidro** — ambiente de galpão industrial
-
-### Comandos disponíveis
-
-- `EMERGENCY_STOP` — Parada de emergência
-- `PAUSE` — Pausar operação
-- `RESUME` — Retomar operação
-- `CALIBRATE` — Calibrar sensores
-- `SPEED_UP` — Aumentar velocidade
-- `SLOW_DOWN` — Reduzir velocidade
-- `CYCLE_START` — Iniciar ciclo
-
-## 🛠️ Tecnologia
-
-- [Three.js](https://threejs.org/) — Renderização 3D via WebGL
-- CSS2DRenderer — Labels sobrepostos
-- OrbitControls — Navegação livre pela cena
+```text
+.env.example                 Modelo das variáveis; copie para .env na raiz
+docs/setup-fabric-foundry.md Setup do Eventstream, Eventhouse e agente Foundry
+app/
+  index.html                  Entrada da SPA (http://localhost:5173)
+  src/main.js                 Lê VITE_TELEMETRY_MODE e VITE_AGENT_MODE
+  src/shared/                 Modelo, regras de status e simulação
+  src/scene/                  Cena 3D Three.js
+  src/ui/                     Painéis, modal de parâmetros e assistente
+  src/integration/            Adaptadores telemetry (mock|fabric) e agent (mock|foundry)
+server/
+  index.js                    API Express em API_PORT (padrão 8787)
+  fabric.js                   Cliente Eventstream/Eventhouse (FABRIC_*)
+  foundry.js                  Cliente Microsoft Foundry (FOUNDRY_*)
+  deviceSimulator.js          Simulador de dispositivos para o Eventstream
+tests/
+  agent.test.js               Testes do adaptador do assistente
+```
