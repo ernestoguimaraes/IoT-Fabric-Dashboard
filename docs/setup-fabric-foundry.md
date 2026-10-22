@@ -24,7 +24,7 @@ Na interface, a telemetria aparece no painel direito **Sincronização Fabric RT
 
 ## Antes de editar o `.env`
 
-1. Copie o modelo: `copy .env.example .env` (não versione o `.env`).
+1. Se ainda não existir um `.env`, copie o modelo no PowerShell: `Copy-Item .\.env.example .\.env` (não sobrescreva uma configuração existente e não versione o `.env`).
 2. Autentique a identidade do proxy: `az login`. O servidor usa `DefaultAzureCredential` para Eventhouse e Foundry.
 3. Depois de alterar o `.env`, reinicie o ambiente (`.\dev.ps1 restart` ou `npm run dev:all`). O Vite só lê variáveis `VITE_*` na inicialização.
 
@@ -70,6 +70,86 @@ DEVICE_INTERVAL_MS=2000
 | `DEVICE_INTERVAL_MS` | `server/deviceSimulator.js` | Intervalo do `npm run simulate:devices`. |
 
 Opcional, não está no `.env.example`: `FABRIC_STALE_SEC=15`. Leituras mais antigas que isso aparecem como sem comunicação.
+
+### Configurar e obter a ingestão em tempo real (Real-Time Intelligence)
+
+Neste projeto não existe uma chave única chamada "Real-Time Ingestion". Você precisa de **uma connection string para enviar eventos** e de **uma Query URI para consultar os dados**. O fluxo é: dispositivo/simulador → Eventstream → Eventhouse → proxy → SPA.
+
+**1. Criar os recursos no Fabric**
+
+No [portal do Fabric](https://app.fabric.microsoft.com), use um workspace com capacidade Fabric ou Trial e permissão Contributor ou superior para criar os recursos. Crie um **Eventhouse** e um banco KQL (por exemplo, `IoTFactory`). Abra o banco e execute cada comando abaixo separadamente, se as tabelas ainda não existirem:
+
+```kusto
+.create table MachineTelemetry (eventType:string, machineId:string, ts:datetime, temp:real, vib:real, usage:int, mode:string, speed:int)
+.create table MachineParams (eventType:string, machineId:string, ts:datetime, source:string, mode:string, speed:int, targetTemp:real, tempLimit:real, vibLimit:real, cycleTime:int)
+.create table MachineCommands (eventType:string, machineId:string, ts:datetime, source:string, command:string)
+```
+
+**2. Obter o endereço e a chave para enviar eventos**
+
+Crie um **Eventstream** no workspace. Em **Edit**, selecione **Add source → Custom endpoint**, dê um nome à fonte e selecione **Publish**. Em **Live view**, selecione essa fonte e abra **Details → Event Hub → SAS Key Authentication**. Os nomes podem variar conforme o idioma e a experiência do portal.
+
+Copie **Connection string-primary key** (ou a secundária) inteira para `FABRIC_EVENTSTREAM_CONNECTION_STRING`. Não copie apenas a Primary key, nem a string Kafka/AMQP. Se a string não tiver `EntityPath`, copie também **Event hub name** para `FABRIC_EVENTSTREAM_NAME`.
+
+```env
+FABRIC_EVENTSTREAM_CONNECTION_STRING="Endpoint=sb://<endpoint>/;SharedAccessKeyName=<nome>;SharedAccessKey=<chave>;EntityPath=<event-hub>"
+FABRIC_EVENTSTREAM_NAME=
+```
+
+A string é um segredo: mantenha-a somente no `.env` local ou no gerenciador de segredos do ambiente.
+
+**3. Obter o endereço para ler a telemetria**
+
+Abra o **banco KQL** do Eventhouse e, nos detalhes do banco, copie **Query URI** para `FABRIC_KUSTO_URI` e o nome do banco para `FABRIC_KUSTO_DATABASE`. Use o valor completo exibido pelo portal; não construa a URI a partir do nome do recurso.
+
+Não use **Ingestion URI** nessa variável: `server/fabric.js` chama a API de consulta `/v1/rest/query`. Neste projeto, o envio é feito pela connection string do Eventstream, e não pela Ingestion URI do Eventhouse.
+
+```env
+VITE_TELEMETRY_MODE=fabric
+FABRIC_KUSTO_URI=https://<query-uri-copiada-do-portal>
+FABRIC_KUSTO_DATABASE=IoTFactory
+FABRIC_LOOPBACK=false
+FABRIC_POLL_MS=3000
+FABRIC_STALE_SEC=15
+```
+
+Autentique com `az login` na conta/tenant que tem acesso ao banco. Essa identidade precisa de permissão de consulta (Viewer no banco, ou equivalente); a chave SAS usada no envio não concede acesso às consultas.
+
+**4. Conectar o Eventstream às tabelas**
+
+No editor do Eventstream, adicione três ramificações **Filter**, uma para cada valor de `eventType` da tabela acima. Em cada saída, adicione um destino **Eventhouse**, selecione **Event processing before ingestion**, o workspace, o banco e a tabela correspondente. Configure os campos JSON com os mesmos nomes e tipos das tabelas; `ts` deve ser `datetime`. Publique as alterações.
+
+Esse modo permite filtrar os três formatos de evento antes da ingestão. Se a experiência do portal solicitar amostras para configurar o mapeamento, inicie o simulador após preencher a connection string e gere também um ajuste de parâmetros ou comando pela SPA para obter exemplos desses eventos.
+
+**5. Enviar dados e conferir a chegada**
+
+Depois de preencher o `.env`, inicie os serviços na raiz do repositório, em dois terminais:
+
+```powershell
+# Terminal 1: SPA e proxy (reinicie se já estavam abertos)
+npm run dev:all
+
+# Terminal 2: dispositivos de demonstração enviando ao Eventstream real
+npm run simulate:devices
+```
+
+No Eventstream, a **Live view/Data preview** permite inspecionar os eventos. No banco KQL, confirme que houve ingestão com:
+
+```kusto
+MachineTelemetry
+| where ts > ago(10m)
+| extend ingestedAt = ingestion_time()
+| project machineId, ts, ingestedAt, temp, vib, usage
+| top 20 by ts desc
+```
+
+Abra <http://localhost:5173> e confira **Sincronização Fabric RTI**. A SPA consulta os dados pelo proxy em intervalos de `FABRIC_POLL_MS` e recebe as atualizações via SSE; não é uma conexão direta do navegador ao Fabric nem uma garantia de latência instantânea.
+
+Se não aparecerem dados: confira se a fonte e os destinos foram publicados, se os filtros e o mapeamento JSON estão corretos, e se os horários `ts` são atuais. O proxy só consulta os últimos 10 minutos e só aceita os IDs de máquinas cadastrados em `app/src/shared/machines.js`. O `ROB-003` começa sem comunicação no simulador, portanto não espere necessariamente 16 máquinas recebendo dados. Se houver atraso de ingestão superior a 15 segundos, investigue-o e ajuste `FABRIC_STALE_SEC` conforme a tolerância desejada; alterar esse limite não acelera a ingestão.
+
+Referências oficiais: [criar Custom endpoint e copiar a connection string](https://learn.microsoft.com/en-us/fabric/real-time-intelligence/event-streams/add-source-custom-app) e [configurar o destino Eventhouse](https://learn.microsoft.com/en-us/fabric/real-time-intelligence/event-streams/add-destination-kql-database).
+
+### Testar sem Fabric (loopback)
 
 Para exercitar o adaptador `fabric` sem recursos Azure, use só isto e não preencha connection string nem Kusto:
 
@@ -132,6 +212,6 @@ Suba SPA e proxy juntos: `npm run dev:all` ou `.\dev.ps1 start`. Abra <http://lo
 
 ## Conferir
 
-- `GET http://localhost:8787/api/health` deve mostrar `fabric.eventstream`, `fabric.eventhouse` e `foundry.configured` como `true` quando as variáveis correspondentes estão preenchidas.
+- `GET http://localhost:8787/api/health` mostra `fabric.eventstream`, `fabric.eventhouse` e `foundry.configured` como `true` quando as variáveis correspondentes estão preenchidas. Esses indicadores verificam presença de configuração, não testam credenciais, permissões nem chegada de eventos; confirme também com a consulta KQL e a SPA.
 - No modo Fabric, o painel **Sincronização Fabric RTI** deve ficar conectado. Sem leituras, rode `npm run simulate:devices` em outro terminal.
 - No modo Foundry, abra o assistente e envie uma mensagem. Falha de credencial ou nome de agente aparece no chat e no log do proxy.

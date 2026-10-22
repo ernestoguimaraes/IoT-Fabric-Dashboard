@@ -91,6 +91,8 @@ O proxy autentica no Fabric e no Foundry com `DefaultAzureCredential` (por exemp
 
 ## Fabric Real-Time Intelligence
 
+Para configurar a ingestão, localizar a connection string do Eventstream e a Query URI do Eventhouse, e verificar a chegada dos dados, veja [Ingestão em tempo real: passo a passo](docs/setup-fabric-foundry.md#configurar-e-obter-a-ingestão-em-tempo-real-real-time-intelligence).
+
 ### Eventhouse
 
 Crie um banco KQL e as tabelas usadas pela integração:
