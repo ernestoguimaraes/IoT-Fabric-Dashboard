@@ -8,6 +8,24 @@ export function effectiveSpeed(m) {
   return speed;
 }
 
+export function runningState(m) {
+  return !m.commLost && effectiveSpeed(m) > 0;
+}
+
+export function telemetrySnapshot(m) {
+  if (m.commLost) return null;
+  return {
+    machineId: m.id,
+    ts: new Date().toISOString(),
+    temp: m.temp,
+    vib: m.vib,
+    usage: m.usage,
+    mode: m.params.mode,
+    speed: m.params.speed,
+    isRunning: runningState(m),
+  };
+}
+
 export function equilibrium(m) {
   const s = effectiveSpeed(m) / 100;
   const { targetTemp, cycleTime, mode } = m.params;
@@ -32,8 +50,7 @@ export function step(m, dtSec = 1) {
   const vib = Math.max(0, m.vib + (eq.vib - m.vib) * a + noise(eq.vib * 0.03));
   const usage = Math.max(0, Math.min(100, m.usage + (eq.usage - m.usage) * a + noise(eq.usage > 0 ? 1.2 : 0)));
   return {
-    machineId: m.id,
-    ts: new Date().toISOString(),
+    ...telemetrySnapshot(m),
     temp: Math.round(temp * 10) / 10,
     vib: Math.round(vib * 100) / 100,
     usage: Math.round(usage),

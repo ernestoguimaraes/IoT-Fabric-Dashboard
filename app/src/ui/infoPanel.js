@@ -69,6 +69,7 @@ export function mountInfoPanel({ onAsk, agentMode }) {
 
     const sum = $('#panel-params');
     const items = [
+      ['Operação (telemetria)', m.isRunning ? 'Em funcionamento' : 'Parado'],
       ['Modo', MODES[p.mode]], ['Velocidade', `${p.speed} %`], ['Temp. alvo', `${fmt(p.targetTemp)} °C`],
       ['Lim. temp.', `${fmt(p.tempLimit)} °C`], ['Lim. vibr.', `${fmt(p.vibLimit, 1)} mm/s`], ['Ciclo', `${p.cycleTime} s`],
     ];

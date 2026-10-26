@@ -1,7 +1,7 @@
 // Simulador local dos dispositivos IoT (modo padrão).
 // Mantém um "gêmeo" de cada máquina, separado do estado da UI: os setpoints
-// só chegam ao dispositivo quando publicados (como num Eventstream real).
-import { step } from '../../shared/simulation.js';
+// so chegam ao dispositivo pelo canal de controle, separado da telemetria.
+import { step, telemetrySnapshot } from '../../shared/simulation.js';
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -13,17 +13,19 @@ export function createMockSource(machines, { intervalMs = 1000 } = {}) {
   })]));
   let timer = null;
   let handlers = {};
+  let initialSample = true;
   const reconnecting = new Set();
 
   function tick() {
     const t0 = performance.now();
     const items = [];
     for (const d of Object.values(devices)) {
-      const t = step(d, intervalMs / 1000);
+      const t = initialSample ? telemetrySnapshot(d) : step(d, intervalMs / 1000);
       if (!t) continue;
       Object.assign(d, { temp: t.temp, vib: t.vib, usage: t.usage });
       items.push({ ...t, commLost: false });
     }
+    initialSample = false;
     // latência simulada do caminho dispositivo → Eventstream → Eventhouse → UI
     const latencyMs = Math.round(60 + Math.random() * 110);
     setTimeout(() => handlers.onTelemetry?.(items, { latencyMs, dtSec: intervalMs / 1000, t0 }), latencyMs);
@@ -36,6 +38,7 @@ export function createMockSource(machines, { intervalMs = 1000 } = {}) {
     },
     start(h) {
       handlers = h;
+      initialSample = true;
       handlers.onStatus?.({ status: 'connecting', detail: 'Iniciando simulador de dispositivos…' });
       setTimeout(() => {
         handlers.onStatus?.({ status: 'connected', detail: this.describe() });

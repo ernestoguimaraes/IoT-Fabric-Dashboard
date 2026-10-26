@@ -13,7 +13,6 @@ export const fabricConfig = () => ({
   database: env('FABRIC_KUSTO_DATABASE'),
   scope: env('FABRIC_KUSTO_SCOPE', 'https://kusto.kusto.windows.net/.default'),
   telemetryTable: env('FABRIC_TELEMETRY_TABLE', 'MachineTelemetry'),
-  paramsTable: env('FABRIC_PARAMS_TABLE', 'MachineParams'),
   pollMs: Number(env('FABRIC_POLL_MS', 2000)),
   staleSec: Number(env('FABRIC_STALE_SEC', 15)),
 });
@@ -34,8 +33,10 @@ function getProducer(c) {
   return producer;
 }
 
-/** Publica eventos no Eventstream. Cada evento leva `eventType` para roteamento (telemetry|params|command). */
+/** Publica somente telemetria no Eventstream. */
 export async function publish(events, c = fabricConfig()) {
+  if (events.some((e) => e.eventType !== 'telemetry')) throw new Error('O Fabric recebe somente eventos telemetry.');
+  if (!events.length) return;
   if (!canPublish(c)) throw Object.assign(new Error('Eventstream não configurado (FABRIC_EVENTSTREAM_CONNECTION_STRING).'), { status: 503 });
   const p = getProducer(c);
   const batch = await p.createBatch();
@@ -68,14 +69,8 @@ export async function kql(csl, c = fabricConfig()) {
 export function latestTelemetry(c = fabricConfig()) {
   return kql(`${c.telemetryTable}
 | where ts > ago(10m)
-| extend ingestedAt = ingestion_time()
-| summarize arg_max(ts, temp, vib, usage, ingestedAt) by machineId`, c);
-}
-
-/** Setpoints desejados mais recentes (publicados pela SPA) — usados pelo simulador de dispositivos. */
-export function latestParams(c = fabricConfig()) {
-  return kql(`${c.paramsTable}
-| summarize arg_max(ts, *) by machineId`, c);
+| extend ingestedAt = ingestion_time(), isRunning = coalesce(tobool(column_ifexists("isRunning", bool(null))), coalesce(mode !in ("off", "paused") and speed > 0, false))
+| summarize arg_max(ts, temp, vib, usage, mode, speed, isRunning, ingestedAt) by machineId`, c);
 }
 
 export async function closeFabric() { await producer?.close(); producer = undefined; }

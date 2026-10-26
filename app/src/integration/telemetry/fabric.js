@@ -1,6 +1,6 @@
 // Adaptador Fabric Real-Time Intelligence (via proxy em /api).
 //   Leitura : Eventhouse (KQL) → proxy → Server-Sent Events  (/api/telemetry/stream)
-//   Escrita : UI → proxy → Eventstream (custom endpoint)     (/api/params, /api/commands)
+//   Controle: UI → proxy HTTP → simulador (/api/params, /api/commands)
 // As credenciais (SAS / Entra ID) ficam apenas no servidor.
 
 async function post(url, body) {
@@ -42,10 +42,10 @@ export function createFabricSource({ apiBase = '' } = {}) {
     },
     stop() { es?.close(); },
     publishParams(machineId, params) {
-      return post(`${apiBase}/api/params`, { machineId, params, ts: new Date().toISOString(), source: 'spa' });
+      return post(`${apiBase}/api/params`, { machineId, params });
     },
     sendCommand(machineId, command) {
-      return post(`${apiBase}/api/commands`, { machineId, command, ts: new Date().toISOString(), source: 'spa' });
+      return post(`${apiBase}/api/commands`, { machineId, command });
     },
   };
 }

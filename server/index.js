@@ -1,15 +1,17 @@
 // Proxy de integração: mantém credenciais no servidor e expõe uma API simples para a SPA.
 //   GET  /api/health              → estado das integrações
 //   GET  /api/telemetry/stream    → SSE com a última telemetria do Eventhouse (Fabric RTI)
-//   POST /api/params              → publica setpoints no Eventstream
-//   POST /api/commands            → publica comandos no Eventstream
+//   POST /api/params              → atualiza controle local do simulador
+//   POST /api/commands            → aplica comandos no controle local
+//   GET  /api/devices/control     → estado desejado para o simulador
 //   POST /api/agent/chat          → conversa com o agente do Azure AI Foundry
 import express from 'express';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createMachines, PARAM_KEYS, MODES } from '../app/src/shared/machines.js';
-import { step } from '../app/src/shared/simulation.js';
-import { fabricConfig, canPublish, canQuery, publish, latestTelemetry } from './fabric.js';
+import { step, telemetrySnapshot } from '../app/src/shared/simulation.js';
+import { fabricConfig, canPublish, canQuery, latestTelemetry } from './fabric.js';
+import { createDeviceControl, COMMANDS } from './deviceControl.js';
 import { chat, foundryConfigured } from './foundry.js';
 
 const PORT = Number(process.env.API_PORT || 8787);
@@ -38,17 +40,22 @@ let pollTimer = null;
 const sse = (res, event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 const broadcast = (event, data) => clients.forEach((res) => sse(res, event, data));
 
-const loop = { devices: Object.fromEntries(KNOWN.map((m) => [m.id, m])) };
+const control = createDeviceControl();
+let initialLoopSample = true;
+app.get('/api/devices/control', (_req, res) => {
+  res.set('Cache-Control', 'no-store').json(control.snapshot());
+});
 
 async function pollOnce() {
   const c = fabricConfig();
   if (LOOPBACK && !canQuery(c)) {
-    const items = Object.values(loop.devices).map((d) => {
-      const t = step(d, c.pollMs / 1000);
+    const items = Object.values(control.devices).map((d) => {
+      const t = initialLoopSample ? telemetrySnapshot(d) : step(d, c.pollMs / 1000);
       if (!t) return { machineId: d.id, commLost: true };
       Object.assign(d, { temp: t.temp, vib: t.vib, usage: t.usage });
       return { ...t, commLost: false };
     });
+    initialLoopSample = false;
     broadcast('telemetry', { items, latencyMs: Math.round(40 + Math.random() * 60) });
     return;
   }
@@ -64,7 +71,7 @@ async function pollOnce() {
     if (r.ingestedAt) lags.push(Math.max(0, new Date(r.ingestedAt).getTime() - ts));
     return stale
       ? { machineId: r.machineId, ts: r.ts, commLost: true }
-      : { machineId: r.machineId, ts: r.ts, temp: r.temp, vib: r.vib, usage: r.usage, commLost: false };
+      : { machineId: r.machineId, ts: r.ts, temp: r.temp, vib: r.vib, usage: r.usage, mode: r.mode, speed: r.speed, isRunning: r.isRunning, commLost: false };
   });
   // máquinas sem nenhuma leitura recente = perda de comunicação
   KNOWN_IDS.forEach((id) => { if (!seen.has(id)) items.push({ machineId: id, commLost: true }); });
@@ -108,12 +115,12 @@ app.get('/api/telemetry/stream', (req, res) => {
   });
 });
 
-// ─── Escrita: setpoints e comandos → Eventstream ─────────────────────────────
+// Controle HTTP local; somente o estado medido segue como telemetria ao Fabric.
 function validateParams(p) {
   if (!p || typeof p !== 'object') return 'params obrigatório';
   for (const k of PARAM_KEYS) {
     if (!(k in p)) return `params.${k} ausente`;
-    if (k === 'mode' ? !(p[k] in MODES) : !Number.isFinite(p[k])) return `params.${k} inválido`;
+    if (k === 'mode' ? !Object.hasOwn(MODES, p[k]) : !Number.isFinite(p[k])) return `params.${k} inválido`;
   }
   return null;
 }
@@ -126,28 +133,19 @@ const send = (fn) => async (req, res) => {
 };
 const bad = (msg) => Object.assign(new Error(msg), { status: 400 });
 
-app.post('/api/params', send(async ({ machineId, params, ts, source }) => {
+app.post('/api/params', send(async ({ machineId, params }) => {
   if (!KNOWN_IDS.has(machineId)) throw bad('machineId desconhecido');
   const err = validateParams(params);
   if (err) throw bad(err);
-  const evt = { eventType: 'params', machineId, ts: ts || new Date().toISOString(), source: source || 'spa', ...Object.fromEntries(PARAM_KEYS.map((k) => [k, params[k]])) };
-  if (LOOPBACK && !canPublish()) { loop.devices[machineId].params = { ...params }; return { ack: true, loopback: true }; }
-  await publish([evt]);
-  return { ack: true };
+  control.setParams(machineId, Object.fromEntries(PARAM_KEYS.map((k) => [k, params[k]])));
+  return { ack: true, delivery: 'local-control' };
 }));
 
-const COMMANDS = new Set(['EMERGENCY_STOP', 'PAUSE', 'RESUME', 'SPEED_UP', 'SLOW_DOWN', 'CALIBRATE', 'CYCLE_START']);
-app.post('/api/commands', send(async ({ machineId, command, ts, source }) => {
+app.post('/api/commands', send(async ({ machineId, command }) => {
   if (!KNOWN_IDS.has(machineId)) throw bad('machineId desconhecido');
   if (!COMMANDS.has(command)) throw bad('comando inválido');
-  if (LOOPBACK && !canPublish()) {
-    const d = loop.devices[machineId];
-    if (command === 'RESUME' || command === 'CYCLE_START') d.commLost = false;
-    if (command === 'CALIBRATE') d.vib *= 0.75;
-    return { ack: true, loopback: true };
-  }
-  await publish([{ eventType: 'command', machineId, command, ts: ts || new Date().toISOString(), source: source || 'spa' }]);
-  return { ack: true };
+  control.command(machineId, command);
+  return { ack: true, delivery: 'local-control' };
 }));
 
 // ─── Agente Foundry ──────────────────────────────────────────────────────────
@@ -169,7 +167,7 @@ app.use((err, _req, res, _next) => res.status(err.status || 500).json({ error: e
 const dist = fileURLToPath(new URL('../dist', import.meta.url));
 if (existsSync(dist)) app.use(express.static(dist));
 
-app.listen(PORT, () => {
+export const server = app.listen(PORT, () => {
   const c = fabricConfig();
   console.log(`🔌 IoT proxy em http://localhost:${PORT}`);
   console.log(`   Fabric Eventstream: ${canPublish(c) ? 'ok' : '—'} · Eventhouse: ${canQuery(c) ? 'ok' : '—'}${LOOPBACK ? ' · loopback ATIVO' : ''}`);

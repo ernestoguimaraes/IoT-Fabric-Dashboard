@@ -6,7 +6,10 @@ export function machineSnapshot(m) {
   return {
     id: m.id, name: m.name, type: m.type, typeLabel: TYPE_LABEL[m.type],
     status: m.status, statusLabel: STATUS_LABEL[m.status],
-    telemetry: { temp: Math.round(m.temp * 10) / 10, vib: m.vib, usage: Math.round(m.usage) },
+    telemetry: {
+      temp: Math.round(m.temp * 10) / 10, vib: m.vib, usage: Math.round(m.usage),
+      isRunning: m.isRunning,
+    },
     params: { ...m.params, modeLabel: MODES[m.params.mode] },
     defaults: { ...m.defaults },
     commLost: m.commLost,

@@ -1,0 +1,17 @@
+machineId,descricao,tipo,descricaoTipo
+CNC-001,Torno CNC 1,cnc,Centro de usinagem CNC
+CNC-002,Torno CNC 2,cnc,Centro de usinagem CNC
+CNC-003,Fresa CNC 1,cnc,Centro de usinagem CNC
+ROB-001,Braço Robô A,robot,Robô industrial 6 eixos
+ROB-002,Braço Robô B,robot,Robô industrial 6 eixos
+ROB-003,Braço Robô C,robot,Robô industrial 6 eixos
+CVY-001,Esteira 1,conveyor,Esteira transportadora
+CVY-002,Esteira 2,conveyor,Esteira transportadora
+CVY-003,Esteira 3,conveyor,Esteira transportadora
+FKL-001,Empilhadeira 1,forklift,Empilhadeira elétrica
+FKL-002,Empilhadeira 2,forklift,Empilhadeira elétrica
+FKL-003,Empilhadeira 3,forklift,Empilhadeira elétrica
+INJ-001,Injetora 1,injector,Injetora de plástico
+INJ-002,Injetora 2,injector,Injetora de plástico
+PRE-001,Prensa Hidráulica,press,Prensa hidráulica
+WLD-001,Solda Robótica,welder,Célula de solda robotizada

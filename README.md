@@ -45,9 +45,12 @@ O script abre um console com os logs ao vivo e grava uma cópia em `.dev-process
 - **Ajuste de parâmetros:** pré-visualização imediata na interface, validação por tipo de máquina, restauração dos valores padrão e aplicação ou cancelamento.
 - **Comandos:** `EMERGENCY_STOP`, `PAUSE`, `RESUME`, `CALIBRATE`, `SPEED_UP`, `SLOW_DOWN` e `CYCLE_START`. A parada de emergência pede confirmação.
 - **Assistente IoT:** no modo mock, responde com uma base local sobre máquinas, estado e manutenção; no modo Foundry, conversa com o agente configurado e recebe o contexto ao vivo da planta enviado pelo proxy.
-- **Telemetria:** simulador local no navegador ou leitura do Fabric Eventhouse via proxy. Com Fabric configurado, parâmetros e comandos são publicados no Eventstream.
+- **Telemetria:** simulador local no navegador ou leitura do Fabric Eventhouse via proxy. Somente telemetria vai ao Fabric; comandos e ajustes usam o controle HTTP local do simulador.
+- **Estado operacional:** `isRunning=true` indica em funcionamento; `false` indica parado (desligado, pausado ou velocidade zero). O painel mostra esse estado recebido por telemetria separadamente de perda de comunicação.
 
 Os valores de temperatura, vibração, utilização, KPIs e estado inicial são demonstrações; não representam uma instalação ou processo industrial real.
+
+UI e simuladores compartilham o estado operacional inicial: 15 máquinas começam em funcionamento (`isRunning=true`), e `ROB-003` começa parado (`isRunning=false`, modo `off`, velocidade zero). Todas as 16 enviam telemetria, sempre com estado booleano, sem `null`. O primeiro lote preserva os valores iniciais antes da evolução física; alertas de temperatura/vibração não significam equipamento parado. Para uma demonstração limpa, reinicie proxy e simulador e recarregue a SPA. Controles já existentes no proxy são respeitados.
 
 ## Modos de execução
 
@@ -74,14 +77,15 @@ Copie `.env.example` para `.env` e preencha somente as configurações dos servi
 | `VITE_AGENT_DEBUG` | Força `true`/`false` para logs do agente no console do navegador; por padrão, os logs ficam ativos em desenvolvimento. |
 | `VITE_API_BASE` | Prefixo opcional da API; normalmente vazio, pois o Vite encaminha `/api` ao proxy. |
 | `API_PORT` | Porta do proxy Express; padrão `8787`. |
-| `FABRIC_EVENTSTREAM_CONNECTION_STRING` | Connection string do endpoint Event Hubs do Eventstream; usada para publicar telemetria, parâmetros e comandos. |
+| `FABRIC_EVENTSTREAM_CONNECTION_STRING` | Connection string do endpoint Event Hubs do Eventstream; usada somente para publicar telemetria. |
 | `FABRIC_EVENTSTREAM_NAME` | Nome do Event Hub, se não estiver incluído na connection string. |
 | `FABRIC_KUSTO_URI`, `FABRIC_KUSTO_DATABASE` | URI de consulta e banco KQL do Eventhouse. |
 | `FABRIC_KUSTO_SCOPE` | Escopo Entra ID do Eventhouse; padrão `https://kusto.kusto.windows.net/.default`. |
-| `FABRIC_TELEMETRY_TABLE`, `FABRIC_PARAMS_TABLE` | Tabelas KQL; padrão `MachineTelemetry` e `MachineParams`. |
+| `FABRIC_TELEMETRY_TABLE` | Tabela KQL de telemetria; padrão `MachineTelemetry`. |
 | `FABRIC_POLL_MS`, `FABRIC_STALE_SEC` | Intervalo de consulta e limite de telemetria considerada desatualizada. |
 | `FABRIC_LOOPBACK` | `true` ativa a emulação em memória do proxy, quando o Eventhouse não está configurado. |
 | `DEVICE_INTERVAL_MS` | Intervalo do simulador de dispositivos; padrão `2000` ms. |
+| `DEVICE_CONTROL_URL` | URL base do proxy consultado pelo simulador; padrão `http://localhost:<API_PORT>`. |
 | `FOUNDRY_PROJECT_ENDPOINT`, `FOUNDRY_AGENT_NAME` | Endpoint do projeto Foundry e nome do agente. |
 | `FOUNDRY_AGENT_ID` | Compatibilidade com o Agent Service clássico; IDs `asst_...` usam o endpoint legado quando `FOUNDRY_AGENT_NAME` não está definido. |
 | `FOUNDRY_API_VERSION`, `FOUNDRY_SCOPE`, `FOUNDRY_TIMEOUT_MS` | Versão da API, escopo Entra ID e timeout do agente. |
@@ -95,23 +99,35 @@ Para configurar a ingestão, localizar a connection string do Eventstream e a Qu
 
 ### Eventhouse
 
-Crie um banco KQL e as tabelas usadas pela integração:
+O [de-para de equipamentos](docs/de-para-equipamentos.csv) contém os 16 códigos, descrições e tipos cadastrados em `app/src/shared/machines.js`, em CSV UTF-8. Use `machineId` para relacioná-lo à telemetria de `MachineTelemetry` e fornecer contexto ao Data Agent. É um cadastro estático de demonstração, não um registro de leituras ou estados atuais; atualize-o quando o cadastro de máquinas mudar.
+
+Crie um banco KQL e a única tabela usada pela integração:
 
 ```kusto
-.create table MachineTelemetry (eventType:string, machineId:string, ts:datetime, temp:real, vib:real, usage:int, mode:string, speed:int)
-.create table MachineParams (eventType:string, machineId:string, ts:datetime, source:string, mode:string, speed:int, targetTemp:real, tempLimit:real, vibLimit:real, cycleTime:int)
-.create table MachineCommands (eventType:string, machineId:string, ts:datetime, source:string, command:string)
+.create table MachineTelemetry (eventType:string, machineId:string, ts:datetime, temp:real, vib:real, usage:int, mode:string, speed:int, isRunning:bool)
 ```
+
+Para uma tabela existente, adicione a coluna sem apagar dados:
+
+```kusto
+.alter-merge table MachineTelemetry (isRunning:bool)
+```
+
+Atualize também o schema/mapeamento do Eventstream para preservar `isRunning` e mapear `$.isRunning` como booleano; depois publique. Registros antigos permanecem sem essa informação, não equivalem a equipamento parado. O [guia de setup](docs/setup-fabric-foundry.md#equipamento-parado-ou-em-funcionamento) descreve o campo e as consultas de conferência.
 
 Configure `FABRIC_KUSTO_URI` e `FABRIC_KUSTO_DATABASE`. Conceda à identidade usada pelo proxy permissão para consultar o banco.
 
 ### Eventstream e simulador
 
 1. Crie um Eventstream com uma fonte **Custom endpoint** usando o protocolo Event Hubs e configure `FABRIC_EVENTSTREAM_CONNECTION_STRING` (e, se necessário, `FABRIC_EVENTSTREAM_NAME`).
-2. Crie destinos no Eventhouse e roteie os eventos pelo campo `eventType`: `telemetry` para `MachineTelemetry`, `params` para `MachineParams` e `command` para `MachineCommands`.
+2. Configure um único destino no Eventhouse: `telemetry` para `MachineTelemetry`.
 3. Conceda à identidade de desenvolvimento permissão para enviar eventos ao Eventstream e consultar o Eventhouse.
 4. Defina `VITE_TELEMETRY_MODE=fabric` e inicie `npm run dev:all`.
-5. Opcionalmente, execute `npm run simulate:devices` em outro terminal para enviar telemetria dos 16 dispositivos. O simulador lê os setpoints mais recentes da tabela `MachineParams` quando o Eventhouse está configurado.
+5. Execute `npm run simulate:devices` em outro terminal para enviar telemetria dos 16 dispositivos, incluindo o `ROB-003` parado. O simulador busca o controle desejado no proxy HTTP, aplica comandos e ajustes e publica o estado resultante (`isRunning`, `mode`, `speed`, temperatura, vibração e utilização).
+
+O controle segue `UI → proxy HTTP → simulador`; a telemetria segue `simulador → Eventstream → MachineTelemetry → proxy → UI`. O ACK da API confirma controle aceito em memória, não execução no dispositivo nem ingestão no Fabric. O estado desejado é volátil: reiniciar o proxy restaura os padrões. Se o proxy estiver indisponível, o simulador registra o erro e continua enviando o último estado conhecido. Esse canal é exclusivo da demonstração local, sem autenticação; equipamentos reais exigem uma integração de controle apropriada.
+
+Configurações antigas: desative/remova no portal os filtros e destinos de parâmetros e comandos e publique o fluxo. As tabelas antigas podem permanecer para preservar o histórico, mas não são mais usadas. A antiga variável de tabela de parâmetros é ignorada. Em `MachineTelemetry`, acrescente `isRunning:bool` conforme descrito acima.
 
 O proxy consulta a última leitura por máquina e a transmite à SPA via SSE. Leituras mais antigas que `FABRIC_STALE_SEC` (15 segundos por padrão), ou máquinas sem leitura, são mostradas como sem comunicação.
 
@@ -135,13 +151,13 @@ npm run preview
 
 O build da SPA é gerado em `dist/`. Para servir a versão buildada com a API, configure o `.env` e execute `npm run server`; o Express serve `dist/` quando a pasta existe. O `npm run preview` do Vite serve apenas o front-end e não inicia a API.
 
-Teste de regressão do assistente (Node 24):
+Testes de controle local, telemetria Fabric e regressão do assistente (Node 24):
 
 ```bash
-node --experimental-test-module-mocks --test tests\agent.test.js
+node --experimental-test-module-mocks --test tests\agent.test.js tests\device-control.test.js tests\fabric.test.js tests\telemetry-state.test.js
 ```
 
-Os testes do agente isolam as chamadas de rede e não acessam o Azure.
+Os testes isolam o Azure; os testes de controle usam um servidor HTTP local em porta temporária.
 
 ## Estrutura do projeto
 
@@ -160,6 +176,10 @@ server/
   fabric.js                   Cliente Eventstream/Eventhouse (FABRIC_*)
   foundry.js                  Cliente Microsoft Foundry (FOUNDRY_*)
   deviceSimulator.js          Simulador de dispositivos para o Eventstream
+  deviceControl.js            Controle HTTP local dos dispositivos simulados
 tests/
   agent.test.js               Testes do adaptador do assistente
+  device-control.test.js      Controle HTTP e aplicação no simulador
+  fabric.test.js              Publicação exclusiva de telemetria e consultas
+  telemetry-state.test.js     Estado da UI e efeitos dos comandos
 ```

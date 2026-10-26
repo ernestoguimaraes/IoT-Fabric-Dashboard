@@ -1,5 +1,6 @@
 // Dados mock das máquinas (mesmos ativos/valores da v2) + setpoints operacionais.
 // Usado pelo front-end e pelo servidor (simulador de dispositivos).
+import { runningState } from './simulation.js';
 
 export const MODES = {
   auto: 'Automático',
@@ -60,7 +61,7 @@ const RAW = [
   ['CNC-003', 'Fresa CNC 1', 'cnc', [0, 0, -6], 89, 1.4, 76, { tempLimit: 85, vibLimit: 1.5, cycleTime: 55 }],
   ['ROB-001', 'Braço Robô A', 'robot', [-6, 0, -2], 55, 0.3, 64, { tempLimit: 70, vibLimit: 1.0, cycleTime: 8 }],
   ['ROB-002', 'Braço Robô B', 'robot', [-2, 0, -2], 52, 0.4, 71, { tempLimit: 70, vibLimit: 1.0, cycleTime: 8 }],
-  ['ROB-003', 'Braço Robô C', 'robot', [2, 0, -2], 54, 0.35, 68, { tempLimit: 70, vibLimit: 1.0, cycleTime: 8 }, { commLost: true, temp: 30, vib: 0, usage: 0 }],
+  ['ROB-003', 'Braço Robô C', 'robot', [2, 0, -2], 54, 0.35, 68, { tempLimit: 70, vibLimit: 1.0, cycleTime: 8 }, { params: { mode: 'off', speed: 0 }, temp: 30, vib: 0, usage: 0 }],
   ['CVY-001', 'Esteira 1', 'conveyor', [-7, 0, 2], 41, 0.2, 83, { tempLimit: 60, vibLimit: 0.6, cycleTime: 6 }],
   ['CVY-002', 'Esteira 2', 'conveyor', [-3, 0, 2], 39, 0.2, 79, { tempLimit: 60, vibLimit: 0.6, cycleTime: 6 }],
   ['CVY-003', 'Esteira 3', 'conveyor', [1, 0, 2], 58, 0.7, 91, { tempLimit: 60, vibLimit: 0.6, cycleTime: 5 }],
@@ -75,14 +76,16 @@ const RAW = [
 
 export function createMachines() {
   return RAW.map(([id, name, type, pos, temp, vib, usage, p, extra = {}]) => {
-    const params = { mode: 'auto', speed: 100, targetTemp: temp, ...p };
+    const defaults = { mode: 'auto', speed: 100, targetTemp: temp, ...p };
+    const params = { ...defaults, ...extra.params };
     return {
       id, name, type, pos,
       moving: type === 'forklift',
       base: { temp, vib, usage, targetTemp: temp },
       params,
-      defaults: { ...params },
+      defaults,
       commLost: !!extra.commLost,
+      isRunning: runningState({ params, commLost: !!extra.commLost }),
       temp: extra.temp ?? temp,
       vib: extra.vib ?? vib,
       usage: extra.usage ?? usage,

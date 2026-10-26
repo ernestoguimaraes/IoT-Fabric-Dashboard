@@ -60,7 +60,12 @@ export function applyTelemetry(items, meta = {}) {
     const m = byId[t.machineId];
     if (!m) continue;
     if (t.commLost !== undefined) m.commLost = !!t.commLost;
+    if (typeof t.isRunning === 'boolean') m.isRunning = t.isRunning;
     if (t.temp !== undefined) { m.temp = +t.temp; m.vib = +t.vib; m.usage = +t.usage; }
+    if (!m.lastControlAt || new Date(t.ts).getTime() >= m.lastControlAt) {
+      if (Object.hasOwn(MODES, t.mode)) m.params.mode = t.mode;
+      if (Number.isFinite(t.speed)) m.params.speed = t.speed;
+    }
     if (!m.commLost) m.lastSeen = t.ts ? new Date(t.ts).getTime() : Date.now();
     if (reevaluate(m)) topics.add('log');
     topics.add(`machine:${m.id}`);
@@ -71,7 +76,7 @@ export function applyTelemetry(items, meta = {}) {
     if (meta.latencyMs != null) s.connection.latencyMs = meta.latencyMs;
     // produção acumulada: cada máquina em operação conclui ciclos proporcionais à velocidade
     const dt = meta.dtSec || 1;
-    s.kpis.pieces += s.machines.reduce((acc, m) => (m.status === 'offline' || m.params.mode === 'paused')
+    s.kpis.pieces += s.machines.reduce((acc, m) => (m.status === 'offline' || m.params.mode === 'paused' || m.isRunning === false)
       ? acc : acc + (dt / m.params.cycleTime) * (m.params.speed / 100) * 6, 0);
   });
 }
@@ -95,6 +100,7 @@ export async function commitParams(id, params, { origin = 'Ajuste de parâmetros
   if (!m) return;
   const before = prev || { ...m.params };
   Object.assign(m.params, params);
+  m.lastControlAt = Date.now();
   reevaluate(m);
   const diff = Object.keys(params).filter((k) => before[k] !== params[k]);
   const text = diff.length
@@ -131,8 +137,14 @@ export async function sendCommand(id, cmd) {
   }
   store.update('kpis', (s) => { s.kpis.commands++; });
   if (source?.sendCommand) {
-    source.sendCommand(id, cmd).then(() => store.update('connection', (s) => { s.connection.eventsOut++; }))
-      .catch((e) => { addLog({ kind: 'error', machineId: id, text: `Falha no comando ${cmd}: ${e.message}` }); store.update('log'); });
+    try {
+      await source.sendCommand(id, cmd);
+      store.update('connection', (s) => { s.connection.eventsOut++; });
+    } catch (e) {
+      addLog({ kind: 'error', machineId: id, text: `Falha no comando ${cmd}: ${e.message}` });
+      store.update('log');
+      throw e;
+    }
   }
   await commitParams(id, p, { origin: `Comando ${cmd}` });
 }
