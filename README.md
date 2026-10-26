@@ -50,6 +50,8 @@ O script abre um console com os logs ao vivo e grava uma cópia em `.dev-process
 
 Os valores de temperatura, vibração, utilização, KPIs e estado inicial são demonstrações; não representam uma instalação ou processo industrial real.
 
+Os [manuais fictícios de operação](Manuais/README.md) descrevem os parâmetros de configuração dos 16 equipamentos, com valores sugeridos para demonstração, um alerta comum de temperatura e a ação correspondente. Não devem ser usados para operar máquinas reais.
+
 UI e simuladores compartilham o estado operacional inicial: 15 máquinas começam em funcionamento (`isRunning=true`), e `ROB-003` começa parado (`isRunning=false`, modo `off`, velocidade zero). Todas as 16 enviam telemetria, sempre com estado booleano, sem `null`. O primeiro lote preserva os valores iniciais antes da evolução física; alertas de temperatura/vibração não significam equipamento parado. Para uma demonstração limpa, reinicie proxy e simulador e recarregue a SPA. Controles já existentes no proxy são respeitados.
 
 ## Modos de execução
