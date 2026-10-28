@@ -25,25 +25,32 @@
           <circle cx="31" cy="27" r="5" fill="none" stroke="#a78bfa" stroke-width="2" />
           <circle cx="31" cy="27" r="1.8" fill="#e9d5ff" />
         </svg>
-        <span class="wordmark">AI <b>Fabric</b></span>
+        <span class="wordmark" id="wordmark">AI <b>Fabric</b></span>
       </div>
       <div class="divider"></div>
       <div class="titles">
-        <h1>Central de Monitoramento IoT — Chão de Fábrica</h1>
-        <p>Unidade Industrial Guarulhos · Linha A · Turno 2 (14:00 – 22:00)</p>
+        <h1 id="page-title">Central de Monitoramento IoT — Chão de Fábrica</h1>
+        <p id="page-sub">Unidade Industrial Guarulhos · Linha A · Turno 2 (14:00 – 22:00)</p>
       </div>
     </div>
 
     <div class="session">
+      <label class="scenario-switch">
+        Simulação
+        <select id="scenario-select" aria-label="Tipo de simulação">
+          <option value="factory">Chão de fábrica</option>
+          <option value="farm">AI Farm</option>
+        </select>
+      </label>
       <div class="clock">
         <div class="time" id="clock-time">--:--:--</div>
         <div class="date" id="clock-date">—</div>
       </div>
       <div class="operator">
-        <div class="avatar">MS</div>
+        <div class="avatar" id="op-avatar">MS</div>
         <div class="who">
-          <div class="name">Marcos Silveira</div>
-          <div class="meta">Matrícula 20458 · Operador Sênior</div>
+          <div class="name" id="op-name">Marcos Silveira</div>
+          <div class="meta" id="op-meta">Matrícula 20458 · Operador Sênior</div>
         </div>
         <span class="auth-badge"><span class="pulse"></span> Autenticado</span>
       </div>
@@ -55,21 +62,21 @@
   <aside id="sidebar" class="side-panel">
     <div class="section">
       <h3>Sessão do operador</h3>
-      <div class="kv"><span class="k">Usuário</span><span class="v">m.silveira</span></div>
-      <div class="kv"><span class="k">Perfil de acesso</span><span class="v">Operação · Nível 2</span></div>
-      <div class="kv"><span class="k">Login em</span><span class="v">14:02</span></div>
+      <div class="kv"><span class="k">Usuário</span><span class="v" id="session-user">m.silveira</span></div>
+      <div class="kv"><span class="k">Perfil de acesso</span><span class="v" id="session-role">Operação · Nível 2</span></div>
+      <div class="kv"><span class="k">Login em</span><span class="v" id="session-login">14:02</span></div>
       <div class="kv"><span class="k">Expira em</span><span class="v" id="session-expire">04:00:00</span></div>
-      <div class="kv"><span class="k">Permissão de comando</span><span class="v" style="color:var(--green)">Liberada</span></div>
+      <div class="kv"><span class="k">Permissão de comando</span><span class="v" id="session-perm" style="color:var(--green)">Liberada</span></div>
     </div>
 
     <div class="section">
-      <h3>Ativos da linha</h3>
+      <h3 id="assets-title">Ativos da linha</h3>
       <div class="machine-list" id="machine-list"></div>
     </div>
 
     <div class="section">
-      <h3>Como operar o painel</h3>
-      <ol class="steps">
+      <h3 id="howto-title">Como operar o painel</h3>
+      <ol class="steps" id="howto-list">
         <li><b>Selecione um ativo</b> — clique na máquina (cena 3D ou lista acima) para abrir as métricas ao vivo.</li>
         <li><b>Ajuste parâmetros</b> — use <b>⚙️ Ajustar parâmetros</b>: cada alteração já reflete na cena e nos alertas (pré-visualização). <b>Aplicar</b> sincroniza com o dispositivo.</li>
         <li><b>Envie um comando</b> — escolha a ação e confirme em <b>Enviar</b>; o efeito aparece imediatamente.</li>
@@ -78,24 +85,26 @@
     </div>
 
     <div class="section">
-      <h3>Procedimento em caso de alerta</h3>
-      <ol class="steps">
+      <h3 id="proc-title">Procedimento em caso de alerta</h3>
+      <ol class="steps" id="proc-list">
         <li>Confirme a leitura do sensor no painel do ativo antes de qualquer ação.</li>
         <li>Temperatura acima do limite: aplique <b>SLOW_DOWN</b> ou reduza a temperatura alvo e acione a manutenção.</li>
         <li>Vibração acima do limite: aplique <b>PAUSE</b> e solicite inspeção mecânica.</li>
         <li>Risco à integridade física: acione <b>EMERGENCY_STOP</b> e comunique o supervisor.</li>
       </ol>
-      <div class="callout" style="margin-top:12px;">
+      <div class="callout" id="proc-callout" style="margin-top:12px;">
         <b>Atenção:</b> comandos de parada afetam a linha de produção. Use <kbd>EMERGENCY_STOP</kbd> apenas em situação de risco confirmado.
       </div>
     </div>
 
     <div class="section">
-      <h3>Contatos do turno</h3>
-      <div class="kv"><span class="k">Supervisão</span><span class="v">Ramal 4102</span></div>
-      <div class="kv"><span class="k">Manutenção</span><span class="v">Ramal 4177</span></div>
-      <div class="kv"><span class="k">Segurança / SESMT</span><span class="v">Ramal 4190</span></div>
-      <div class="kv"><span class="k">Suporte TI / IoT</span><span class="v">Ramal 4008</span></div>
+      <h3 id="contacts-title">Contatos do turno</h3>
+      <div id="contacts-list">
+        <div class="kv"><span class="k">Supervisão</span><span class="v">Ramal 4102</span></div>
+        <div class="kv"><span class="k">Manutenção</span><span class="v">Ramal 4177</span></div>
+        <div class="kv"><span class="k">Segurança / SESMT</span><span class="v">Ramal 4190</span></div>
+        <div class="kv"><span class="k">Suporte TI / IoT</span><span class="v">Ramal 4008</span></div>
+      </div>
     </div>
   </aside>
 
@@ -104,7 +113,7 @@
     <div id="canvas-container"></div>
 
     <div id="hud">
-      <h1>🏭 IoT Factory Floor <small>SPA · reativa · Fabric RTI</small></h1>
+      <h1 id="hud-title">🏭 IoT Factory Floor <small>SPA · reativa · Fabric RTI</small></h1>
       <div class="stats">
         <div class="stat"><div class="label">Online</div><div class="value online" id="stat-online">—</div></div>
         <div class="stat"><div class="label">Alerta</div><div class="value alert" id="stat-alert">—</div></div>
@@ -171,12 +180,12 @@
     </div>
 
     <div class="section">
-      <h3>Indicadores do turno</h3>
+      <h3 id="kpi-title">Indicadores do turno</h3>
       <div id="kpis"></div>
     </div>
 
     <div class="section">
-      <h3>Sincronização Fabric RTI</h3>
+      <h3 id="sync-title">Sincronização Fabric RTI</h3>
       <div id="sync-info"></div>
     </div>
 
@@ -196,7 +205,7 @@
     </div>
     <div class="group">
       <span class="item">Última sincronização: <b id="last-update">—</b></span>
-      <span class="item">AI Fabric · Real-Time Intelligence + Foundry Agents · v1.0.0</span>
+      <span class="item" id="footer-brand">AI Fabric · Real-Time Intelligence + Foundry Agents · v1.0.0</span>
     </div>
   </footer>
 </div>

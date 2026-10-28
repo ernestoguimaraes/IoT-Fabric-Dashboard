@@ -43,14 +43,35 @@ const fmt = (n, d = 0) => Number(n).toLocaleString('pt-BR', { minimumFractionDig
 
 function describeParams(m) {
   const p = m.params;
-  return `Modo ${p.modeLabel}, velocidade ${p.speed}%, temperatura alvo ${fmt(p.targetTemp)} °C, limites ${fmt(p.tempLimit)} °C / ${fmt(p.vibLimit, 1)} mm/s, ciclo ${p.cycleTime} s.`;
+  const bits = [`Modo ${p.modeLabel || p.mode}`, `velocidade ${p.speed}%`];
+  if (p.targetTemp != null) bits.push(`temperatura alvo ${fmt(p.targetTemp)} °C`);
+  if (p.tempLimit != null) bits.push(`limite de temperatura ${fmt(p.tempLimit)} °C`);
+  if (p.vibLimit != null) bits.push(`limite de vibração ${fmt(p.vibLimit, 1)} mm/s`);
+  if (p.fuelMin != null) bits.push(`combustível mínimo ${fmt(p.fuelMin)} %`);
+  if (p.humidityLimit != null) bits.push(`limite de umidade ${fmt(p.humidityLimit)} %`);
+  if (p.nh3Limit != null) bits.push(`limite de amônia ${fmt(p.nh3Limit)} ppm`);
+  if (p.activityLimit != null) bits.push(`limite de atividade ${fmt(p.activityLimit)} %`);
+  if (p.outsideLimit != null) bits.push(`cerca ${fmt(p.outsideLimit)} animais`);
+  if (p.cycleTime != null) bits.push(`ciclo ${p.cycleTime} s`);
+  return `${bits.join(', ')}.`;
 }
 
-function explainStatus(m) {
+function readingLine(m) {
+  const t = m.telemetry || {};
+  if (m.metrics?.length) {
+    return m.metrics.map((metric) => {
+      const value = t[metric.key];
+      return `${metric.label.toLowerCase()} ${Number.isFinite(value) ? fmt(value, metric.digits || 0) : '—'} ${metric.unit}`;
+    }).join(', ');
+  }
+  return `${fmt(t.temp)} °C, ${fmt(t.vib, 1)} mm/s, uso ${t.usage}%`;
+}
+
+function explainStatus(m, table = KB) {
   const t = m.telemetry;
-  const head = `${m.id} · ${m.name} está **${m.statusLabel}** (${fmt(t.temp)} °C, ${fmt(t.vib, 1)} mm/s, uso ${t.usage}%).`;
+  const head = `${m.id} · ${m.name} está **${m.statusLabel}** (${readingLine(m)}).`;
   if (m.status === 'online') return `${head}\nTodos os sensores dentro dos limites configurados.\nParâmetros: ${describeParams(m)}`;
-  const kb = KB[m.type];
+  const kb = table[m.type];
   const lines = [head, '', 'Motivo:', ...m.reasons.map((r) => `• ${r}`), '', 'O que fazer:'];
   if (m.commLost) {
     lines.push('• Verifique alimentação e cabo de rede do gateway da máquina.', '• Envie RESUME para tentar reconectar o dispositivo.', '• Persistindo, acione Suporte TI / IoT (ramal 4008).');
@@ -61,15 +82,24 @@ function explainStatus(m) {
     const vibHigh = t.vib >= m.params.vibLimit;
     if (tempHigh) lines.push(`• Reduza a velocidade (SLOW_DOWN) ou a temperatura alvo — hoje ${fmt(m.params.targetTemp)} °C; algo abaixo de ${fmt(m.params.tempLimit * 0.95)} °C deve normalizar.`);
     if (vibHigh) lines.push(`• Reduza a velocidade para ~${Math.max(50, m.params.speed - 20)}% ou aplique PAUSE e solicite inspeção mecânica.`);
+    if (Number.isFinite(t.fuel) && Number.isFinite(m.params.fuelMin) && t.fuel <= m.params.fuelMin) {
+      lines.push('• Combustível abaixo do mínimo: reduza a velocidade e retorne para abastecer.');
+    }
+    if (Number.isFinite(t.nh3) && Number.isFinite(m.params.nh3Limit) && t.nh3 >= m.params.nh3Limit) {
+      lines.push('• Amônia elevada: aumente a ventilação e verifique cama ou aeração.');
+    }
+    if (Number.isFinite(t.outside) && Number.isFinite(m.params.outsideLimit) && t.outside > m.params.outsideLimit) {
+      lines.push('• Há animais fora da cerca: use localizar lote e, se preciso, contenha o lote.');
+    }
     if (m.params.mode === 'paused') lines.push('• Operação pausada: envie RESUME quando a condição for liberada.');
-    lines.push('', `Causas comuns em ${m.typeLabel.toLowerCase()}:`, ...kb.causes.slice(0, 3).map((c) => `• ${c}`));
+    if (kb?.causes?.length) lines.push('', `Causas comuns em ${(m.typeLabel || m.type).toLowerCase()}:`, ...kb.causes.slice(0, 3).map((c) => `• ${c}`));
   }
   return lines.join('\n');
 }
 
 function plantSummary(ctx) {
   const s = ctx.summary;
-  const lines = [`Planta: ${s.online} online, ${s.alert} em alerta, ${s.offline} offline (de ${s.total}).`];
+  const lines = [`${ctx.plant || 'Planta'}: ${s.online} online, ${s.alert} em alerta, ${s.offline} offline (de ${s.total}).`];
   if (ctx.alerts.length) {
     lines.push('', 'Pontos de atenção:');
     ctx.alerts.forEach((a) => lines.push(`• ${a.id} · ${a.name}: ${a.reasons[0] || a.status}`));
@@ -91,17 +121,18 @@ function findMachine(text, ctx) {
   return ctx.selected;
 }
 
-export function answer(text, ctx, snapshotOf) {
+export function answer(text, ctx, snapshotOf, pack = null) {
+  const table = pack?.kb || KB;
   const q = text.toLowerCase();
   let m = findMachine(text, ctx);
   if (m?.partial && snapshotOf) m = snapshotOf(m.id);
-  const kb = m ? KB[m.type] : null;
+  const kb = m ? table[m.type] : null;
 
-  if (/resumo|planta|geral|todas|quais.*(alerta|máquinas)|status da linha/.test(q) || (!m && /alerta|alarme|status/.test(q))) {
+  if (/resumo|planta|fazenda|rebanho|talh[aã]o|geral|todas|quais.*(alerta|máquinas)|status da linha/.test(q) || (!m && /alerta|alarme|status/.test(q))) {
     return plantSummary(ctx);
   }
   if (!m) {
-    return 'Posso explicar o funcionamento, alarmes, parâmetros e manutenção de qualquer máquina da linha.\nSelecione um ativo na cena ou cite o código (ex.: "Por que a INJ-002 está em alerta?").';
+    return pack?.empty || 'Posso explicar o funcionamento, alarmes, parâmetros e manutenção de qualquer máquina da linha.\nSelecione um ativo na cena ou cite o código (ex.: "Por que a INJ-002 está em alerta?").';
   }
   if (/funciona|o que (é|faz)|como opera|princípio/.test(q)) {
     return `${m.id} · ${m.name} (${m.typeLabel})\n\n${kb.how}\n\nParâmetros atuais: ${describeParams(m)}`;
@@ -110,22 +141,27 @@ export function answer(text, ctx, snapshotOf) {
     return `Manutenção recomendada — ${m.typeLabel}:\n${kb.maint.map((x) => `• ${x}`).join('\n')}`;
   }
   if (/parâmetr|parametr|ajust|setpoint|velocidade|limite|ciclo|configur/.test(q)) {
-    return `Parâmetros de ${m.id}: ${describeParams(m)}\n\nPadrão de fábrica: velocidade ${m.defaults.speed}%, alvo ${fmt(m.defaults.targetTemp)} °C, limites ${fmt(m.defaults.tempLimit)} °C / ${fmt(m.defaults.vibLimit, 1)} mm/s, ciclo ${m.defaults.cycleTime} s.\n\nDica: velocidade e tempo de ciclo afetam diretamente temperatura, vibração e uso. Use "⚙️ Ajustar parâmetros" — a pré-visualização mostra o efeito antes de aplicar.`;
+    const standard = describeParams({ params: { ...m.defaults, modeLabel: m.defaults.mode } });
+    return `Parâmetros de ${m.id}: ${describeParams(m)}\n\nPadrão do ativo: ${standard}\n\nDica: use "⚙️ Ajustar parâmetros" — a pré-visualização mostra o efeito antes de aplicar.`;
   }
-  if (/comando|emergenc|parar|pausar|retomar/.test(q)) {
-    return 'Comandos disponíveis:\n• EMERGENCY_STOP — desliga imediatamente (modo Desligado)\n• PAUSE / RESUME — pausa e retoma o ciclo\n• SPEED_UP / SLOW_DOWN — ±10% de velocidade\n• CALIBRATE — recalibra sensores de vibração\n• CYCLE_START — inicia ciclo em modo Automático';
+  if (/comando|emergenc|parar|pausar|retomar|conter|exaust/.test(q)) {
+    return pack?.commands || 'Comandos disponíveis:\n• EMERGENCY_STOP — desliga imediatamente (modo Desligado)\n• PAUSE / RESUME — pausa e retoma o ciclo\n• SPEED_UP / SLOW_DOWN — ±10% de velocidade\n• CALIBRATE — recalibra sensores de vibração\n• CYCLE_START — inicia ciclo em modo Automático';
   }
-  if (/causa|por que|porque|alerta|alarme|problema|status|está/.test(q)) return explainStatus(m);
-  return explainStatus(m);
+  if (/causa|por que|porque|alerta|alarme|problema|status|está/.test(q)) return explainStatus(m, table);
+  return explainStatus(m, table);
 }
 
-export function createMockAgent({ snapshotOf } = {}) {
+export function createMockAgent({ snapshotOf, kb, assistant } = {}) {
+  const pack = kb ? { kb, empty: assistant?.empty, commands: assistant?.commands } : null;
   return {
     mode: 'mock',
     label: 'Agente local (mock)',
+    intro: assistant?.intro || 'Olá! Sou o assistente da Linha A. Posso explicar como cada máquina funciona, por que um ativo está em alerta, quais parâmetros ajustar e a manutenção recomendada.\nSelecione uma máquina na cena ou pergunte direto.',
+    summaryChip: assistant ? 'Resumo da fazenda' : 'Resumo da planta',
+    placeholder: assistant ? 'Pergunte sobre máquinas, rebanhos ou galpões…' : 'Pergunte sobre o funcionamento das máquinas…',
     async send(text, context) {
       await new Promise((r) => setTimeout(r, 450 + Math.random() * 500));
-      return { text: answer(text, context, snapshotOf), source: 'Base de conhecimento local · estado ao vivo' };
+      return { text: answer(text, context, snapshotOf, pack), source: 'Base de conhecimento local · estado ao vivo' };
     },
     reset() {},
   };

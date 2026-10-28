@@ -1,8 +1,42 @@
 // HUD, lista de ativos, alertas, KPIs, sincronização Fabric, log e barra de status — todos reativos.
 import { $, el, setText, reconcile, fmt, hms } from './dom.js';
 import { store, selectMachine } from '../state.js';
+import { activeScenario } from '../scenarios/index.js';
+
+export function hydrateChrome(profile) {
+  const c = profile.chrome;
+  document.title = profile.documentTitle;
+  $('#app').dataset.scenario = profile.id;
+  $('#wordmark').innerHTML = c.wordmark;
+  setText($('#page-title'), c.title);
+  setText($('#page-sub'), c.subtitle);
+  setText($('#op-avatar'), profile.operator.avatar);
+  setText($('#op-name'), profile.operator.name);
+  setText($('#op-meta'), profile.operator.meta);
+  $('#hud-title').innerHTML = c.hud;
+  setText($('#assets-title'), c.assetsTitle);
+  setText($('#howto-title'), c.howtoTitle);
+  $('#howto-list').innerHTML = c.howto.map((step) => `<li>${step}</li>`).join('');
+  setText($('#proc-title'), c.procTitle);
+  $('#proc-list').innerHTML = c.proc.map((step) => `<li>${step}</li>`).join('');
+  $('#proc-callout').innerHTML = c.callout;
+  setText($('#contacts-title'), c.contactsTitle);
+  $('#contacts-list').replaceChildren(...c.contacts.map(([k, v]) =>
+    el('div', { class: 'kv' }, el('span', { class: 'k' }, k), el('span', { class: 'v' }, v))));
+  const [user, role, login, perm] = c.session;
+  setText($('#session-user'), user[1]);
+  setText($('#session-role'), role[1]);
+  setText($('#session-login'), login[1]);
+  setText($('#session-perm'), perm[1]);
+  setText($('#kpi-title'), c.kpiTitle);
+  setText($('#sync-title'), c.syncTitle);
+  setText($('#footer-brand'), c.footer);
+  const sel = $('#scenario-select');
+  if (sel) sel.value = profile.id;
+}
 
 export function mountSidePanels({ source }) {
+  const runtime = { source };
   // ─── HUD ───
   store.subscribe(['machines'], (s) => {
     const c = (st) => s.machines.filter((m) => m.status === st).length;
@@ -51,23 +85,17 @@ export function mountSidePanels({ source }) {
   // ─── KPIs do turno ───
   const kpis = $('#kpis');
   const kv = (k, id) => el('div', { class: 'kv' }, el('span', { class: 'k' }, k), el('span', { class: 'v', id }));
-  kpis.append(kv('Disponibilidade', 'k-avail'), kv('OEE estimado', 'k-oee'), kv('Peças produzidas', 'k-pieces'),
-    kv('Paradas não planejadas', 'k-stops'), kv('Comandos enviados', 'k-cmds'), kv('Ajustes de parâmetros', 'k-params'));
-  store.subscribe(['machines', 'kpis'], (s) => {
-    const running = s.machines.filter((m) => m.status !== 'offline');
-    const avail = running.length / s.machines.length;
-    const perf = running.length ? running.reduce((a, m) => a + Math.min(100, m.usage), 0) / running.length / 100 : 0;
-    const quality = 0.985 - s.machines.filter((m) => m.status === 'alert').length * 0.004;
-    const availEl = $('#k-avail');
-    setText(availEl, `${fmt(avail * 100, 1)} %`);
-    availEl.style.color = avail >= 0.9 ? 'var(--green)' : avail >= 0.75 ? 'var(--yellow)' : 'var(--red)';
-    setText($('#k-oee'), `${fmt(avail * perf * quality * 100, 1)} %`);
-    setText($('#k-pieces'), fmt(Math.floor(s.kpis.pieces)));
-    const stops = $('#k-stops');
-    setText(stops, s.kpis.unplanned);
-    stops.style.color = s.kpis.unplanned ? 'var(--yellow)' : '';
-    setText($('#k-cmds'), s.kpis.commands);
-    setText($('#k-params'), s.kpis.paramChanges);
+  store.subscribe(['machines', 'kpis', 'scenario'], (s) => {
+    const rows = activeScenario().kpiRows(s);
+    if (kpis.children.length !== rows.length) {
+      kpis.replaceChildren(...rows.map(() => el('div', { class: 'kv' }, el('span', { class: 'k' }), el('span', { class: 'v' }))));
+    }
+    rows.forEach((row, i) => {
+      setText(kpis.children[i].querySelector('.k'), row.label);
+      const value = kpis.children[i].querySelector('.v');
+      setText(value, row.value);
+      value.style.color = row.color || '';
+    });
   });
 
   // ─── Sincronização Fabric RTI ───
@@ -77,7 +105,7 @@ export function mountSidePanels({ source }) {
   const STATE = { connecting: ['Conectando…', 'var(--yellow)'], connected: ['Conectado', 'var(--green)'], error: ['Erro', 'var(--red)'] };
   store.subscribe(['connection', 'machines'], (s) => {
     const c = s.connection;
-    setText($('#s-src'), c.mode === 'fabric' ? 'Fabric Eventhouse' : 'Simulador local');
+    setText($('#s-src'), c.mode === 'fabric' ? 'Fabric Eventhouse' : activeScenario().chrome.syncSource);
     const [label, color] = STATE[c.status] || ['—', ''];
     const st = $('#s-state'); setText(st, label); st.style.color = color;
     setText($('#s-in'), fmt(c.eventsIn));
@@ -89,9 +117,9 @@ export function mountSidePanels({ source }) {
     // barra de status
     const dot = $('#conn-dot');
     dot.className = 'dot' + (c.status === 'connected' ? '' : c.status === 'error' ? ' err' : ' warn');
-    setText($('#conn-text'), `${source.mode === 'fabric' ? 'Fabric RTI' : 'Simulador'}: ${label.toLowerCase()}`);
+    setText($('#conn-text'), `${runtime.source.mode === 'fabric' ? 'Fabric RTI' : 'Simulador'}: ${label.toLowerCase()}`);
     $('#conn-text').title = c.detail || '';
-    setText($('#gw-text'), `Gateway de borda: ${synced}/${s.machines.length} ativos`);
+    setText($('#gw-text'), `${activeScenario().chrome.gateway}: ${synced}/${s.machines.length} ativos`);
     setText($('#lat-text'), c.latencyMs != null ? `${c.latencyMs} ms` : '—');
     $('#lat-dot').className = 'dot' + (c.latencyMs == null ? ' idle' : c.latencyMs > 150 ? ' warn' : '');
     setText($('#last-update'), hms(c.lastSync));
@@ -104,4 +132,6 @@ export function mountSidePanels({ source }) {
     if (!items.length) { log.innerHTML = '<div class="log-item">Sem eventos ainda.</div>'; return; }
     log.replaceChildren(...items.map((e) => el('div', { class: `log-item ${e.kind}` }, el('time', {}, hms(e.ts)), e.text)));
   });
+
+  return { setSource(next) { runtime.source = next; } };
 }

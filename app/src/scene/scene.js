@@ -1013,8 +1013,9 @@ renderer.domElement.addEventListener('pointerdown', () => {
   if (!introDone) { introDone = true; controls.enabled = true; }
 });
 
+let rafId = 0;
 function animate() {
-  requestAnimationFrame(animate);
+  rafId = requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
   const t = clock.elapsedTime;
 
@@ -1100,8 +1101,26 @@ function onResize() {
   composer.setSize(w, h);
   labelRenderer.setSize(w, h);
 }
-new ResizeObserver(onResize).observe(container);
+const resizeObserver = new ResizeObserver(onResize);
+resizeObserver.observe(container);
 window.addEventListener('resize', onResize);
 
-return { select, dispose: () => clearInterval(screenTimer) };
+function dispose() {
+  cancelAnimationFrame(rafId);
+  clearInterval(screenTimer);
+  resizeObserver.disconnect();
+  window.removeEventListener('resize', onResize);
+  controls.dispose();
+  scene.traverse((o) => {
+    if (o.geometry) o.geometry.dispose();
+    const mats = o.material ? [].concat(o.material) : [];
+    mats.forEach((mat) => mat.dispose?.());
+  });
+  renderer.dispose();
+  renderer.domElement.remove();
+  labelRenderer.domElement.remove();
+  pmrem.dispose();
+}
+
+return { select, dispose };
 }

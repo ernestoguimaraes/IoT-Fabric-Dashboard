@@ -4,11 +4,15 @@ import { STATUS_LABEL } from '../../shared/rules.js';
 
 export function machineSnapshot(m) {
   return {
-    id: m.id, name: m.name, type: m.type, typeLabel: TYPE_LABEL[m.type],
+    id: m.id, name: m.name, type: m.type,     typeLabel: m.typeLabel || TYPE_LABEL[m.type] || m.type,
     status: m.status, statusLabel: STATUS_LABEL[m.status],
+    metrics: m.metrics || null,
+    location: m.location || null,
     telemetry: {
       temp: Math.round(m.temp * 10) / 10, vib: m.vib, usage: Math.round(m.usage),
       isRunning: m.isRunning,
+      fuel: m.fuel, humidity: m.humidity, nh3: m.nh3, activity: m.activity,
+      outside: m.outside, speedKmh: m.speedKmh,
     },
     params: { ...m.params, modeLabel: MODES[m.params.mode] },
     defaults: { ...m.defaults },
@@ -21,7 +25,8 @@ export function buildContext(state) {
   const sel = state.selectedId ? state.byId[state.selectedId] : null;
   const count = (s) => state.machines.filter((m) => m.status === s).length;
   return {
-    plant: 'Unidade Industrial Guarulhos · Linha A · Turno 2',
+    plant: state.plant || 'Unidade Industrial Guarulhos · Linha A · Turno 2',
+    scenario: state.scenario || 'factory',
     summary: { online: count('online'), alert: count('alert'), offline: count('offline'), total: state.machines.length },
     alerts: state.machines.filter((m) => m.status !== 'online')
       .map((m) => ({ id: m.id, name: m.name, status: m.status, reasons: m.reasons.map((r) => r.text) })),

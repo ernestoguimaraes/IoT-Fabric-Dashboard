@@ -2,6 +2,7 @@
 import { createStore } from './store.js';
 import { createMachines, MODES } from './shared/machines.js';
 import { evaluate } from './shared/rules.js';
+import { effectiveSpeed } from './shared/simulation.js';
 
 const machines = createMachines();
 machines.forEach((m) => Object.assign(m, evaluate(m)));
@@ -17,6 +18,9 @@ export const store = createStore({
     mode: 'mock', status: 'connecting', detail: '', lastSync: null,
     latencyMs: null, eventsIn: 0, eventsOut: 0,
   },
+  scenario: 'factory',
+  plant: 'Unidade Industrial Guarulhos · Linha A · Turno 2',
+  operator: { login: 'm.silveira', name: 'Marcos Silveira' },
 });
 
 let source = null;
@@ -29,7 +33,35 @@ function addLog(entry) {
   store.state.log.length = Math.min(store.state.log.length, 60);
 }
 
+function syncDerived(m) {
+  if (m.base?.speedKmh != null) {
+    m.speedKmh = Math.round((effectiveSpeed(m) / 100) * m.base.speedKmh * 10) / 10;
+  }
+}
+
+export function resetScenario(machines, kpis, meta = {}) {
+  machines.forEach((m) => {
+    syncDerived(m);
+    Object.assign(m, evaluate(m));
+  });
+  store.update(['machines', 'selection', 'log', 'kpis', 'connection', 'scenario'], (s) => {
+    s.machines = machines;
+    s.byId = Object.fromEntries(machines.map((m) => [m.id, m]));
+    s.selectedId = null;
+    s.editingId = null;
+    s.log = [];
+    s.kpis = { ...kpis };
+    s.scenario = meta.scenario || 'factory';
+    s.plant = meta.plant || s.plant;
+    s.operator = meta.operator || s.operator;
+    s.connection.eventsIn = 0;
+    s.connection.eventsOut = 0;
+    s.connection.lastSync = null;
+  });
+}
+
 function reevaluate(m) {
+  syncDerived(m);
   const prev = m.status;
   Object.assign(m, evaluate(m));
   if (prev !== m.status) {
@@ -62,6 +94,9 @@ export function applyTelemetry(items, meta = {}) {
     if (t.commLost !== undefined) m.commLost = !!t.commLost;
     if (typeof t.isRunning === 'boolean') m.isRunning = t.isRunning;
     if (t.temp !== undefined) { m.temp = +t.temp; m.vib = +t.vib; m.usage = +t.usage; }
+    for (const key of ['fuel', 'humidity', 'nh3', 'activity', 'outside', 'speedKmh', 'headcount']) {
+      if (t[key] !== undefined && t[key] !== null) m[key] = +t[key];
+    }
     if (!m.lastControlAt || new Date(t.ts).getTime() >= m.lastControlAt) {
       if (Object.hasOwn(MODES, t.mode)) m.params.mode = t.mode;
       if (Number.isFinite(t.speed)) m.params.speed = t.speed;
@@ -76,8 +111,10 @@ export function applyTelemetry(items, meta = {}) {
     if (meta.latencyMs != null) s.connection.latencyMs = meta.latencyMs;
     // produção acumulada: cada máquina em operação conclui ciclos proporcionais à velocidade
     const dt = meta.dtSec || 1;
-    s.kpis.pieces += s.machines.reduce((acc, m) => (m.status === 'offline' || m.params.mode === 'paused' || m.isRunning === false)
-      ? acc : acc + (dt / m.params.cycleTime) * (m.params.speed / 100) * 6, 0);
+    if (s.scenario !== 'farm') {
+      s.kpis.pieces += s.machines.reduce((acc, m) => (m.status === 'offline' || m.params.mode === 'paused' || m.isRunning === false)
+        ? acc : acc + (dt / m.params.cycleTime) * (m.params.speed / 100) * 6, 0);
+    }
   });
 }
 

@@ -7,11 +7,14 @@ const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 const clone = (o) => JSON.parse(JSON.stringify(o));
 
 export function createMockSource(machines, { intervalMs = 1000 } = {}) {
+  const extras = ['fuel', 'humidity', 'nh3', 'activity', 'outside', 'speedKmh', 'headcount'];
   const devices = Object.fromEntries(machines.map((m) => [m.id, clone({
     id: m.id, params: m.params, defaults: m.defaults, base: m.base,
     temp: m.temp, vib: m.vib, usage: m.usage, commLost: m.commLost,
+    ...Object.fromEntries(extras.filter((k) => m[k] != null).map((k) => [k, m[k]])),
   })]));
   let timer = null;
+  let boot = null;
   let handlers = {};
   let initialSample = true;
   const reconnecting = new Set();
@@ -22,7 +25,11 @@ export function createMockSource(machines, { intervalMs = 1000 } = {}) {
     for (const d of Object.values(devices)) {
       const t = initialSample ? telemetrySnapshot(d) : step(d, intervalMs / 1000);
       if (!t) continue;
-      Object.assign(d, { temp: t.temp, vib: t.vib, usage: t.usage });
+      const live = { temp: t.temp, vib: t.vib, usage: t.usage };
+      for (const k of ['fuel', 'humidity', 'nh3', 'activity', 'outside', 'speedKmh', 'headcount']) {
+        if (t[k] !== undefined) live[k] = t[k];
+      }
+      Object.assign(d, live);
       items.push({ ...t, commLost: false });
     }
     initialSample = false;
@@ -40,13 +47,14 @@ export function createMockSource(machines, { intervalMs = 1000 } = {}) {
       handlers = h;
       initialSample = true;
       handlers.onStatus?.({ status: 'connecting', detail: 'Iniciando simulador de dispositivos…' });
-      setTimeout(() => {
+      boot = setTimeout(() => {
+        boot = null;
         handlers.onStatus?.({ status: 'connected', detail: this.describe() });
         tick();
         timer = setInterval(tick, intervalMs);
       }, 400);
     },
-    stop() { clearInterval(timer); },
+    stop() { clearTimeout(boot); clearInterval(timer); timer = null; boot = null; },
     async publishParams(machineId, params) {
       await delay(120 + Math.random() * 180);
       const d = devices[machineId];
@@ -62,7 +70,10 @@ export function createMockSource(machines, { intervalMs = 1000 } = {}) {
         reconnecting.add(machineId);
         setTimeout(() => { d.commLost = false; reconnecting.delete(machineId); }, 1500);
       }
-      if (cmd === 'CALIBRATE') d.vib *= 0.75;
+      if (cmd === 'CALIBRATE') {
+        d.vib *= 0.75;
+        if (d.outside != null) d.outside = Math.max(0, d.outside - 1);
+      }
       return { ack: true };
     },
   };

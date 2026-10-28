@@ -1,8 +1,10 @@
 // Janela de ajuste de parâmetros: pré-visualização ao vivo (reativa), validação, aplicar/cancelar.
 import { $, el, setText, fmt, toast } from './dom.js';
 import { store, closeEditor, previewParams, commitParams } from '../state.js';
-import { paramSchema, PARAM_KEYS, MODES, TYPE_LABEL } from '../shared/machines.js';
+import { MODES, TYPE_LABEL } from '../shared/machines.js';
 import { STATUS_LABEL } from '../shared/rules.js';
+import { activeScenario } from '../scenarios/index.js';
+import { metricsOf, metricOver } from '../scenarios/metrics.js';
 
 export function mountParamsModal() {
   const modal = $('#params-modal');
@@ -11,11 +13,12 @@ export function mountParamsModal() {
 
   const decimals = (s) => (String(s.step).split('.')[1] || '').length;
   const show = (k, v, s) => (k === 'mode' ? MODES[v] : `${fmt(v, decimals(s))} ${s.unit}`);
+  const keys = () => Object.keys(current.schema);
 
   function validate() {
     const { draft, schema } = current;
     let ok = true;
-    for (const k of PARAM_KEYS) {
+    for (const k of keys()) {
       if (k === 'mode') continue;
       const s = schema[k];
       const f = form.querySelector(`[data-k="${k}"]`);
@@ -23,7 +26,7 @@ export function mountParamsModal() {
       const v = draft[k];
       if (!Number.isFinite(v)) msg = 'Valor inválido.';
       else if (v < s.min || v > s.max) msg = `Fora da faixa permitida (${s.min}–${s.max} ${s.unit}).`;
-      else if (k === 'tempLimit' && v <= draft.targetTemp) msg = 'O limite de alarme deve ser maior que a temperatura alvo.';
+      else if (k === 'tempLimit' && schema.targetTemp && Number.isFinite(draft.targetTemp) && v <= draft.targetTemp) msg = 'O limite de alarme deve ser maior que a temperatura alvo.';
       f.classList.toggle('invalid', !!msg);
       setText(f.querySelector('.err'), msg);
       if (msg) ok = false;
@@ -35,7 +38,7 @@ export function mountParamsModal() {
   function markChanged() {
     const { draft, snapshot, schema } = current;
     let n = 0;
-    for (const k of PARAM_KEYS) {
+    for (const k of keys()) {
       const f = form.querySelector(`[data-k="${k}"]`);
       const changed = draft[k] !== snapshot[k];
       if (changed) n++;
@@ -59,11 +62,11 @@ export function mountParamsModal() {
   }
 
   function build(m) {
-    const schema = paramSchema(m.type);
+    const schema = activeScenario().paramSchema(m.type);
     current = { id: m.id, snapshot: { ...m.params }, draft: { ...m.params }, schema };
     setText($('#pm-title'), `⚙️ Parâmetros — ${m.id}`);
-    setText($('#pm-sub'), `${m.name} · ${TYPE_LABEL[m.type]}`);
-    form.replaceChildren(...PARAM_KEYS.map((k) => {
+    setText($('#pm-sub'), `${m.name} · ${m.typeLabel || TYPE_LABEL[m.type] || m.type}`);
+    form.replaceChildren(...Object.keys(schema).map((k) => {
       const s = schema[k];
       const head = el('div', { class: 'row' }, el('label', { for: `pm-${k}` }, s.label), el('span', { class: 'val' }));
       if (k === 'mode') {
@@ -90,23 +93,24 @@ export function mountParamsModal() {
     const live = $('#pm-live');
     const cells = [
       ['Status', STATUS_LABEL[m.status], `var(--${m.status === 'online' ? 'green' : m.status === 'alert' ? 'yellow' : 'red'})`],
-      ['Temperatura', m.commLost ? '—' : `${fmt(m.temp, 1)} °C`, m.temp >= m.params.tempLimit ? 'var(--red)' : ''],
-      ['Vibração', m.commLost ? '—' : `${fmt(m.vib, 2)} mm/s`, m.vib >= m.params.vibLimit ? 'var(--red)' : ''],
-      ['Utilização', m.commLost ? '—' : `${fmt(m.usage)} %`, ''],
+      ...metricsOf(m).map((metric) => {
+        const value = m[metric.key];
+        const shown = m.commLost || !Number.isFinite(value) ? '—' : `${fmt(value, metric.digits ?? 1)} ${metric.unit}`;
+        return [metric.label, shown, metricOver(m, metric) ? 'var(--red)' : ''];
+      }),
     ];
-    if (!live.children.length) {
-      live.append(...cells.map(() => el('div', {}, el('div', { class: 'lv-label' }), el('div', { class: 'lv-value' }))));
+    if (live.children.length !== cells.length) {
+      live.replaceChildren(...cells.map(() => el('div', {}, el('div', { class: 'lv-label' }), el('div', { class: 'lv-value' }))));
     }
     cells.forEach(([k, v, c], i) => {
       setText(live.children[i].querySelector('.lv-label'), k);
       const val = live.children[i].querySelector('.lv-value');
       setText(val, v); val.style.color = c;
     });
-    const dirty = PARAM_KEYS.some((k) => current.draft[k] !== current.snapshot[k]);
+    const dirty = keys().some((k) => current.draft[k] !== current.snapshot[k]);
+    const profile = activeScenario();
     const note = $('#pm-note');
-    note.innerHTML = dirty
-      ? '<span class="preview-tag">PRÉ-VISUALIZAÇÃO</span> Status e limites já refletem o ajuste. <b>Aplicar</b> publica no Eventstream e a telemetria converge.'
-      : 'Alterações são pré-visualizadas ao vivo. <b>Aplicar</b> publica no Eventstream para o dispositivo.';
+    note.innerHTML = dirty ? profile.previewNote : profile.publishNote;
   }
 
   function open(id) {
@@ -134,12 +138,13 @@ export function mountParamsModal() {
   async function apply() {
     if (!current || !validate()) return;
     const { id, draft, snapshot } = current;
-    const changed = PARAM_KEYS.filter((k) => draft[k] !== snapshot[k]);
+    const changed = keys().filter((k) => draft[k] !== snapshot[k]);
     closeEditor();
     if (!changed.length) { toast('Nenhuma alteração para aplicar.', 'info'); return; }
     try {
       await commitParams(id, { ...draft }, { prev: snapshot });
-      toast(`✅ ${changed.length} parâmetro(s) de ${id} publicados no ${store.state.connection.mode === 'fabric' ? 'Fabric Eventstream' : 'simulador'}`);
+      const where = store.state.scenario === 'farm' ? 'simulador da fazenda' : store.state.connection.mode === 'fabric' ? 'Fabric Eventstream' : 'simulador';
+      toast(`✅ ${changed.length} parâmetro(s) de ${id} publicados no ${where}`);
     } catch (e) {
       toast(`⚠️ Parâmetros aplicados localmente, mas a sincronização falhou: ${e.message}`, 'err');
     }
@@ -151,7 +156,7 @@ export function mountParamsModal() {
   $('#pm-reset').addEventListener('click', () => {
     const m = store.state.byId[current?.id];
     if (!m) return;
-    for (const k of PARAM_KEYS) if (current.draft[k] !== m.defaults[k]) onChange(k, m.defaults[k]);
+    for (const k of keys()) if (current.draft[k] !== m.defaults[k]) onChange(k, m.defaults[k]);
   });
   modal.addEventListener('click', (e) => { if (e.target === modal) cancel(); });
   document.addEventListener('keydown', (e) => {

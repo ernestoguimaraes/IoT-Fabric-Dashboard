@@ -39,7 +39,9 @@ O script abre um console com os logs ao vivo e grava uma cópia em `.dev-process
 
 ## O que a SPA oferece
 
-- **Cena 3D:** galpão industrial, máquinas animadas, câmera orbital, seleção de ativos e modo vitrine.
+- **Cenário:** o seletor **Simulação** no cabeçalho alterna entre o chão de fábrica (padrão) e a **AI Farm**. A escolha fica em `localStorage` (`iot-scenario`). A fazenda é somente mock — não consulta Fabric nem Foundry — e demonstra as mesmas funções: cena 3D, telemetria, alertas, parâmetros, comandos e assistente, agora com máquinas de campo, rebanho e galpões.
+- **Cena 3D:** galpão industrial ou fazenda, ativos animados, câmera orbital, seleção e modo vitrine.
+- **Organização da AI Farm:** talhões separados para tratores, pulverização, colheita e irrigação; garagem de manutenção, pátio logístico de mão única, armazenagem, pastagens e suinocultura. Veículos seguem circuitos independentes com curvas suaves e verificação de distância de segurança; as rodas acompanham o deslocamento e param junto com o veículo.
 - **Monitoramento reativo:** lista de máquinas, estados online/alerta/offline, métricas, alertas, KPIs, eventos e sincronização.
 - **Painel do ativo:** temperatura, vibração, utilização, limites e setpoints.
 - **Ajuste de parâmetros:** pré-visualização imediata na interface, validação por tipo de máquina, restauração dos valores padrão e aplicação ou cancelamento.
@@ -156,7 +158,7 @@ O build da SPA é gerado em `dist/`. Para servir a versão buildada com a API, c
 Testes de controle local, telemetria Fabric e regressão do assistente (Node 24):
 
 ```bash
-node --experimental-test-module-mocks --test tests\agent.test.js tests\device-control.test.js tests\fabric.test.js tests\telemetry-state.test.js
+node --experimental-test-module-mocks --test tests\agent.test.js tests\device-control.test.js tests\fabric.test.js tests\telemetry-state.test.js tests\farm.test.js tests\farm-layout.test.js tests\side-panels.test.js
 ```
 
 Os testes isolam o Azure; os testes de controle usam um servidor HTTP local em porta temporária.
